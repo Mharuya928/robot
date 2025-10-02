@@ -100,3 +100,6 @@ InitTestScene*.unity*
 
 # フォントを無視
 NotoSansJP*
+
+# StreamingAssets フォルダ全体を無視
+/Assets/StreamingAssets/
