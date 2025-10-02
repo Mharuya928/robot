@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using LLMUnity;
 using UnityEngine.UI;
+using TMPro;
 
 namespace LLMUnitySamples
 {

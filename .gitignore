@@ -103,3 +103,7 @@ NotoSansJP*
 
 # StreamingAssets フォルダ全体を無視
 /Assets/StreamingAssets/
+
+# .gguf ファイルをすべて無視
+*.gguf
+*.gguf.meta
