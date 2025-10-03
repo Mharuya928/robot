@@ -62,46 +62,81 @@ public class CarController : MonoBehaviour
 	{
 
 	}
+    // FixedUpdateは物理演算のフレームレートで呼ばれる
 	public void FixedUpdate()
 	{
+        // ユーザーがInputFieldを操作していない場合にのみ、キーボード入力を受け付ける
 		if (!isInputFieldFocused)
 		{
-			Debug.Log("CarFUpdate");
-			float motor = maxMotorTorque * Input.GetAxis("Vertical");
-			float steering = maxSteeringAngle * Input.GetAxis("Horizontal");
-
-			foreach (AxleInfo axleInfo in axleInfos)
-			{
-				if (axleInfo.steering)
-				{
-					axleInfo.leftWheel.steerAngle = steering;
-					axleInfo.rightWheel.steerAngle = steering;
-				}
-				if (axleInfo.motor)
-				{
-					axleInfo.leftWheel.motorTorque = motor;
-					axleInfo.rightWheel.motorTorque = motor;
-				}
-				ApplyLocalPositionToVisuals(axleInfo.leftWheel);
-				ApplyLocalPositionToVisuals(axleInfo.rightWheel);
-			}
+			float motor = Input.GetAxis("Vertical");      // 上下キー or W/Sキー
+			float steering = Input.GetAxis("Horizontal"); // 左右キー or A/Dキー
+            Move(motor, steering); // 汎用Moveメソッドを呼び出す
 		}
 
+        // 全てのホイールの見た目を更新
+        foreach (AxleInfo axleInfo in axleInfos)
+        {
+            ApplyLocalPositionToVisuals(axleInfo.leftWheel);
+            ApplyLocalPositionToVisuals(axleInfo.rightWheel);
+        }
+	}
+	
+    public void Move(float motorInput, float steeringInput)
+	{
+		float motor = maxMotorTorque * motorInput;
+		float steering = maxSteeringAngle * steeringInput;
+
+		foreach (AxleInfo axleInfo in axleInfos)
+		{
+			if (axleInfo.steering)
+			{
+				axleInfo.leftWheel.steerAngle = steering;
+				axleInfo.rightWheel.steerAngle = steering;
+			}
+			if (axleInfo.motor)
+			{
+				axleInfo.leftWheel.motorTorque = motor;
+				axleInfo.rightWheel.motorTorque = motor;
+			}
+		}
+	}
+	public void Forward()
+    {
+        Move(1.0f, 0f);
+    }
+
+    /// 車を後退させます。
+    public void Backward()
+    {
+        Move(-1.0f, 0f);
+    }
+	
+    /// 車を右折させます。（前進しながら）
+	public void TurnRight()
+	{
+		Move(0.8f, 1.0f); // 直進しながら曲がる方が自然なため、モーターにも少し値を入れています
 	}
 
+    /// 車を左折させます。（前進しながら）
+    public void TurnLeft()
+    {
+        Move(0.8f, -1.0f); // こちらも同様
+    }
 
-public void SetInput(float motorInput, float steeringInput)
-{
-    // 入力を設定
-    Input.SetAxis("Vertical", motorInput);
-    Input.SetAxis("Horizontal", steeringInput);
-}
+	// public void SetInput(float motorInput, float steeringInput)
+	// {
+	//     // 入力を設定
+	//     Input.SetAxis("Vertical", motorInput);
+	//     Input.SetAxis("Horizontal", steeringInput);
+	// }
 
 
-[System.Serializable]
+	[System.Serializable]
 	public class AxleInfo {
-	public WheelCollider leftWheel;
-	public WheelCollider rightWheel;
-	public bool motor; // このホイールはモーターにアタッチされているかどうか
-	public bool steering; // このホイールはハンドルの角度を反映しているかどうか
+		public WheelCollider leftWheel;
+		public WheelCollider rightWheel;
+		public bool motor; // このホイールはモーターにアタッチされているかどうか
+		public bool steering; // このホイールはハンドルの角度を反映しているかどうか
+	}
+
 }

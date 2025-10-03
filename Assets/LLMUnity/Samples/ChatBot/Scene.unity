@@ -38,6 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
+  m_IndirectSpecularColor: {r: 0.44657832, g: 0.49641222, b: 0.57481664, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -174,7 +175,7 @@ MonoBehaviour:
   playerColor: {r: 0.31764707, g: 0.6431373, b: 0.31764707, a: 1}
   aiColor: {r: 0.11372549, g: 0.11372549, b: 0.28627452, a: 1}
   fontColor: {r: 1, g: 1, b: 1, a: 1}
-  font: {fileID: 12800000, guid: e3265ab4bf004d28a9537516768c1c75, type: 3}
+  font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   fontSize: 16
   bubbleWidth: 600
   llmCharacter: {fileID: 1844795171}
@@ -664,10 +665,11 @@ MonoBehaviour:
   debug: 0
   parallelPrompts: -1
   dontDestroyOnLoad: 1
-  contextSize: 4096
+  contextSize: 8192
   batchSize: 512
-  model: ELYZA-japanese-Llama-2-7b-fast-instruct-q4_K_M.gguf
-  chatTemplate: llama chat
+  basePrompt: 
+  model: 
+  chatTemplate: chatml
   lora: 
   loraWeights: 
   flashAttention: 0
@@ -677,9 +679,7 @@ MonoBehaviour:
   SSLKey: 
   SSLKeyPath: 
   minContextLength: 0
-  maxContextLength: 4096
-  embeddingsOnly: 0
-  embeddingLength: 4096
+  maxContextLength: 0
 --- !u!1 &1051131186
 GameObject:
   m_ObjectHideFlags: 0
@@ -769,7 +769,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1082174422}
   - component: {fileID: 1082174421}
-  - component: {fileID: 1082174423}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -854,29 +853,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
---- !u!114 &1082174423
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1082174420}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Version: 3
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_LightLayerMask: 1
-  m_RenderingLayers: 1
-  m_CustomShadowLayers: 0
-  m_ShadowLayerMask: 1
-  m_ShadowRenderingLayers: 1
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
 --- !u!1 &1788474014
 GameObject:
   m_ObjectHideFlags: 0
@@ -1161,20 +1137,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   advancedOptions: 0
   remote: 0
-  _llm: {fileID: 817827756}
-  APIKey: 
+  llm: {fileID: 817827756}
   host: localhost
   port: 13333
   numRetries: 10
+  APIKey: 
   save: 
   saveCache: 0
   debugPrompt: 0
-  numPredict: -1
-  slot: -1
+  stream: 1
   grammar: 
-  grammarJSON: 
   cachePrompt: 1
+  slot: -1
   seed: 0
+  numPredict: -1
   temperature: 0.2
   topK: 40
   topP: 0.9
@@ -1182,6 +1158,7 @@ MonoBehaviour:
   repeatPenalty: 1.1
   presencePenalty: 0
   frequencyPenalty: 0
+  tfsZ: 1
   typicalP: 1
   repeatLastN: 64
   penalizeNl: 1
@@ -1193,7 +1170,6 @@ MonoBehaviour:
   ignoreEos: 0
   nKeep: -1
   stop: []
-  stream: 1
   playerName: user
   AIName: assistant
   prompt: A chat between a curious human and an artificial intelligence assistant.
@@ -1201,7 +1177,6 @@ MonoBehaviour:
   setNKeepToPrompt: 1
   chat: []
   grammarString: 
-  grammarJSONString: 
 --- !u!1 &2011827136
 GameObject:
   m_ObjectHideFlags: 0
@@ -1213,7 +1188,6 @@ GameObject:
   - component: {fileID: 2011827140}
   - component: {fileID: 2011827139}
   - component: {fileID: 2011827138}
-  - component: {fileID: 2011827141}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1295,50 +1269,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2011827141
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2011827136}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_RenderShadows: 1
-  m_RequiresDepthTextureOption: 2
-  m_RequiresOpaqueTextureOption: 2
-  m_CameraType: 0
-  m_Cameras: []
-  m_RendererIndex: -1
-  m_VolumeLayerMask:
-    serializedVersion: 2
-    m_Bits: 1
-  m_VolumeTrigger: {fileID: 0}
-  m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
-  m_Antialiasing: 0
-  m_AntialiasingQuality: 2
-  m_StopNaN: 0
-  m_Dithering: 0
-  m_ClearDepth: 1
-  m_AllowXRRendering: 1
-  m_AllowHDROutput: 1
-  m_UseScreenCoordOverride: 0
-  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
-  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
-  m_RequiresDepthTexture: 0
-  m_RequiresColorTexture: 0
-  m_Version: 2
-  m_TaaSettings:
-    m_Quality: 3
-    m_FrameInfluence: 0.1
-    m_JitterScale: 1
-    m_MipBias: 0
-    m_VarianceClampScale: 0.9
-    m_ContrastAdaptiveSharpening: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
