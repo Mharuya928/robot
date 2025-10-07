@@ -27,7 +27,7 @@ public class AIController : MonoBehaviour
 {
 
     public TMP_InputField inputField;
-    public CarController carController;
+    public SimpleCarController carController;
     public LLMCharacter llmCharacter;
 
     private void Start()

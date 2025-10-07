@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public class CarController : MonoBehaviour
+public class SimpleCarController : MonoBehaviour
 {
 
 	public List<AxleInfo> axleInfos; // 個々の車軸の情報
