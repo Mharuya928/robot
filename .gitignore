@@ -107,3 +107,6 @@ NotoSansJP*
 # .gguf ファイルをすべて無視
 *.gguf
 *.gguf.meta
+
+# Imagesフォルダ内の画像をすべて無視
+/[Aa]ssets/Images

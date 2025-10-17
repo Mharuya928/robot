@@ -1349,23 +1349,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1064351404}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 19695540d0ebe6429bb3382e115d18db, type: 3}
+  m_Script: {fileID: 11500000, guid: baaea158f4b977680917b00a4673ca15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   axleInfos:
-  - leftWheel: {fileID: 678331680}
-    rightWheel: {fileID: 303141928}
-    motor: 1
-    steering: 1
-  - leftWheel: {fileID: 1103503398}
-    rightWheel: {fileID: 676998640}
-    motor: 0
-    steering: 0
+  - {leftWheel: {fileID: 678331680}, rightWheel: {fileID: 303141928}, motor: 1, steering: 1}
+  - {leftWheel: {fileID: 1103503398}, rightWheel: {fileID: 676998640}, motor: 0, steering: 0}
   maxMotorTorque: 400
   maxBrakeTorque: 500
   maxSteeringAngle: 30
-  llmCharacter: {fileID: 1614419612}
   inputField: {fileID: 1010067288}
+  isInputFieldFocused: 0
+  currentAiState: 0
 --- !u!1 &1103503396
 GameObject:
   m_ObjectHideFlags: 0

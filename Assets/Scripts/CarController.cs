@@ -1,22 +1,21 @@
 // using UnityEngine;
 // using UnityEngine.UI;
 // using TMPro;
-// using LLMUnity;
 // using System.Collections.Generic;
 // using System.Reflection;
 // using UnityEngine.EventSystems;
 
 // // LLMによって呼び出される関数を定義する静的クラス
-// // public static class CarCommands
-// // {
-// //     public static string Forward() { return "Forward"; }
-// //     public static string Backward() { return "Backward"; }
-// //     public static string TurnLeft() { return "TurnLeft"; }
-// //     public static string TurnRight() { return "TurnRight"; }
-// //     public static string Stop() { return "Stop"; }
-// // }
+// public static class CarCommands
+// {
+//     public static string Forward() { return "Forward"; }
+//     public static string Backward() { return "Backward"; }
+//     public static string TurnLeft() { return "TurnLeft"; }
+//     public static string TurnRight() { return "TurnRight"; }
+//     public static string Stop() { return "Stop"; }
+// }
 
-// public class LLMCarController : MonoBehaviour
+// public class CarController : MonoBehaviour
 // {
 //     // ========== 車の物理制御に関する変数 ==========
 //     [Header("Car Physics Settings")]
@@ -27,7 +26,6 @@
 
 //     // ========== AIとUI連携に関する変数 ==========
 //     [Header("AI and UI Settings")]
-//     public LLMCharacter llmCharacter;
 //     public TMP_InputField inputField;
 
 //     private bool isInputFieldFocused = false;
@@ -45,19 +43,15 @@
 //     }
 //     // AIによる現在の命令状態を保存する変数。初期状態は停止。
 //     private AiState currentAiState = AiState.Idle;
-
-
 //     // ========== 初期化処理 ==========
 //     void Start()
 //     {
 //         inputField.onSelect.AddListener((_) => isInputFieldFocused = true);
 //         inputField.onDeselect.AddListener((_) => isInputFieldFocused = false);
 //         inputField.onSubmit.AddListener(OnInputFieldSubmit);
-//         llmCharacter.grammarString = MultipleChoiceGrammar();
-//         Debug.Log("LLM Car Controller Initialized.");
 //     }
 
-//     // ========== 物理演算と状態の実行 ==========
+//     //     // ========== 物理演算と状態の実行 ==========
 //     void FixedUpdate()
 //     {
 //         float motor = 0;
@@ -73,7 +67,7 @@
 //             // 手動操作を優先し、AIの状態をリセットする
 //             motor = manualMotor;
 //             steering = manualSteering;
-//             currentAiState = AiState.Idle; 
+//             currentAiState = AiState.Idle;
 //         }
 //         else
 //         {
@@ -114,8 +108,7 @@
 //             ApplyLocalPositionToVisuals(axleInfo.rightWheel);
 //         }
 //     }
-
-//     // ========== LLMによるAI制御 ==========
+    
 //     async void OnInputFieldSubmit(string message)
 //     {
 //         if (string.IsNullOrWhiteSpace(message))
@@ -125,8 +118,10 @@
 //             Debug.Log("Input field is empty.");
 //             return;
 //         }
+
+//         Debug.Log("Input field submitted: " + message);
 //         inputField.interactable = false;
-//         string functionName = await llmCharacter.Chat(ConstructPrompt(message));
+//         string functionName = "";
 //         Debug.Log($"LLM suggested function: {functionName}");
 
 //         // LLMの応答に基づいてAIの状態を変更する
@@ -163,32 +158,6 @@
 //                 currentAiState = AiState.Braking;
 //                 break;
 //         }
-//     }
-
-
-//     // ========== LLMプロンプトとグラマーのヘルパー関数 ==========
-//     string[] GetFunctionNames()
-//     {
-//         List<string> functionNames = new List<string>();
-//         foreach (var function in typeof(CarCommands).GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
-//         {
-//             functionNames.Add(function.Name);
-//         }
-//         return functionNames.ToArray();
-//     }
-//     string MultipleChoiceGrammar()
-//     {
-//         /* ...変更なし... */
-//         return "root ::= (\"" + string.Join("\" | \"", GetFunctionNames()) + "\")";
-//     }
-//     string ConstructPrompt(string message)
-//     {
-//         /* ...変更なし... */
-//         string prompt = "Which of the following functions best matches the user's input?\n\n";
-//         prompt += "Input: " + message + "\n\n";
-//         prompt += "Functions:\n"; foreach (string functionName in GetFunctionNames()) { prompt += $"- {functionName}\n"; }
-//         prompt += "\nRespond with only the name of the function.";
-//         return prompt;
 //     }
 
 //     // ========== 車のコア機能 ==========
