@@ -216,7 +216,7 @@ public class VLMCarController : MonoBehaviour
     private void OnPhoto()
     {
         // OnPhoto メソッド内のプロンプトをこう変えます
-        string fixedQuestion = "Analyze this third-person view. If you detect an object that is close enough to be considered a risk, set 'danger_detected' to true and 'danger_type' to 'obstacle'. If there are no immediate risks, set 'danger_detected' to false. Also, list all noteworthy objects in 'detected_objects'. Provide a structural JSON report.";        // ▼▼▼ 修正: 呼び出し先を新しい SendRequestToOllama のシグネチャに合わせる ▼▼▼
+        string fixedQuestion = "Analyze this third-person view. My car is the white car at the bottom of the frame. Your primary task is to detect collision risks. Any object visually close to my car (in the lower half of the image) IS an immediate collision risk. If you detect an immediate collision risk, set 'danger_detected' to true and 'danger_type' to an appropriate value (e.g., 'obstacle'). If, and only if, all objects are clearly far away (in the upper half of the image), set 'danger_detected' to false and 'danger_type' to 'none'. List all noteworthy objects in 'detected_objects'. Provide a structural JSON report.";
         StartCoroutine(SendRequestToOllama(fixedQuestion));
     }
 
