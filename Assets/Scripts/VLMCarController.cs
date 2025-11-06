@@ -1,4 +1,4 @@
- using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Networking;
@@ -7,11 +7,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-
-// ▼▼▼ 削除: コマンド用のデータ構造 (OllamaFormatSchema, AICommandResponse など) ▼▼▼
-// [System.Serializable]
-// public class OllamaFormatSchema { ... }
-// ... (関連クラスすべて) ...
 
 // --- リクエスト/レスポンス (共通) ---
 [System.Serializable]
@@ -22,10 +17,6 @@ public class OllamaRequest
     public Message[] messages;
 }
 
-// ▼▼▼ 削除: コマンドスキーマ用のリクエスト (OllamaSchemaRequest) ▼▼▼
-// [System.Serializable]
-// public class OllamaSchemaRequest { ... }
-
 [System.Serializable]
 public class Message { public string role; public string content; public string[] images; }
 [System.Serializable]
@@ -33,11 +24,8 @@ public class OllamaResponse { public ResponseMessage message; }
 [System.Serializable]
 public class ResponseMessage { public string role; public string content; }
 
-// ▼▼▼ 削除: コマンド用のレスポンス (AICommandResponse) ▼▼▼
-// [System.Serializable]
-// public class AICommandResponse { ... }
 
-// --- 写真解析用のJSONスキーマ定義 (変更なし) ---
+// --- 写真解析用のJSONスキーマ定義 ---
 
 [System.Serializable]
 public class OllamaPhotoSchemaRequest
@@ -59,9 +47,7 @@ public class PhotoFormatSchema
 [System.Serializable]
 public class PhotoFormatProperties
 {
-    public SchemaPropertyBase danger_detected;
-    public SchemaPropertyEnum danger_type;
-    public SchemaPropertyArray detected_objects;
+    public SchemaPropertyArray detected_objects; // 物体検出のみ
 }
 
 [System.Serializable]
@@ -72,31 +58,22 @@ public class SchemaPropertyBase
 }
 
 [System.Serializable]
-public class SchemaPropertyEnum : SchemaPropertyBase
-{
-    public string[] @enum;
-}
-
-[System.Serializable]
 public class SchemaPropertyArray : SchemaPropertyBase
 {
     public SchemaPropertyBase items;
 }
 
-// --- 写真解析のJSON応答をパースするためのクラス (変更なし) ---
+// --- 写真解析のJSON応答をパースするためのクラス ---
 [System.Serializable]
 public class AIPhotoResponse
 {
-    public bool danger_detected;
-    public string danger_type;
-    public string[] detected_objects;
+    public string[] detected_objects; // 物体検出のみ
 }
 
 
 // --- メインのスクリプト ---
 public class VLMCarController : MonoBehaviour
 {
-    // (中略: 車の物理制御、UI変数、Ollama設定などの変数は変更なし)
     [Header("Car Physics Settings")]
     public List<AxleInfo> axleInfos;
     public float maxMotorTorque;
@@ -114,68 +91,49 @@ public class VLMCarController : MonoBehaviour
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
 
-    // ▼▼▼ 削除: inputField, sendButton, isInputFieldFocused ▼▼▼
-    // private TMP_InputField inputField;
-    // private Button sendButton;    
-    private Button photoButton; // photoButtonのみ残す
-    [SerializeField] private TMP_Text responseText;
-    // private bool isInputFieldFocused = false;
+    private Button photoButton;
+    // ▼▼▼ 修正: テキスト変数を3つに分離 ▼▼▼
+    [Header("UI Text Fields")]
+    [SerializeField] private TMP_Text raycastText; // レイキャスト（距離）用
+    [SerializeField] private TMP_Text triggerText; // トリガー（ゾーン）用
+    [SerializeField] private TMP_Text VLMText;     // VLM（物体認識）用
+
+    // ▼▼▼ 追加: レイキャストのログ用（コンソールが溢れるのを防ぐため） ▼▼▼
+    private string lastRaycastTargetName = null;
+
+    // ▼▼▼ 追加: Gameビュー描画用のラインレンダラー ▼▼▼
+    private LineRenderer gameViewRaycastLine;
+    
     private bool isProcessing = false;
     
-    // ▼▼▼ 削除: コマンド用スキーマ (_commandSchema) ▼▼▼
-    // private OllamaFormatSchema _commandSchema;
-    private PhotoFormatSchema _photoSchema; // 写真解析用のみ残す
+    private PhotoFormatSchema _photoSchema; 
 
-    // ▼▼▼ 削除: AI操縦用の状態 (AiState, currentAiState) ▼▼▼
-    // private enum AiState { ... }
-    // private AiState currentAiState = AiState.Idle;
 
-    
+
+
     void Start()
     {
         if (canvas != null)
         {
-            // ▼▼▼ 削除: inputField, sendButton の取得ロジック ▼▼▼
-            // inputField = canvas.GetComponentInChildren<TMP_InputField>();
-            // Transform sendButtonTransform = canvas.transform.Find("sendButton");
-            // if (sendButtonTransform != null) sendButton = sendButtonTransform.GetComponent<Button>();
-
             Transform photoButtonTransform = canvas.transform.Find("photoButton");
             if (photoButtonTransform != null) photoButton = photoButtonTransform.GetComponent<Button>();
         }
         if (carCamera == null) { Debug.LogError("Target Camera が設定されていません"); return; }
         if (photoButton == null) { Debug.LogError("photoButton (Button) が見つかりません"); return; }
-        
-        // ▼▼▼ 削除: inputField, sendButton のエラーチェックとリスナー設定 ▼▼▼
-        // if (inputField == null) { ... }
-        // if (sendButton == null) { ... }
-        // inputField.onSelect.AddListener(...);
-        // inputField.onDeselect.AddListener(...);
-        // inputField.onSubmit.AddListener(...);
-        // sendButton.onClick.AddListener(OnSend);
 
-        photoButton.onClick.AddListener(OnPhoto); // OnPhotoのリスナーのみ残す
+        // ▼▼▼ 修正: 3つのテキストが設定されているか確認 ▼▼▼
+        if (raycastText == null) { Debug.LogError("raycastText が設定されていません"); return; }
+        if (triggerText == null) { Debug.LogError("triggerText が設定されていません"); return; }
+        if (VLMText == null) { Debug.LogError("VLMText が設定されていません"); return; }
         
-        // ▼▼▼ 削除: 車両制御用のJSONスキーマ (_commandSchema) の定義 ▼▼▼
-        // _commandSchema = new OllamaFormatSchema { ... };
-
-        // 写真解析用のJSONスキーマを定義 (変更なし)
+        photoButton.onClick.AddListener(OnPhoto);
+        
+        // 写真解析用のJSONスキーマを定義 (物体検出のみ)
         _photoSchema = new PhotoFormatSchema
         {
             type = "object",
             properties = new PhotoFormatProperties
             {
-                danger_detected = new SchemaPropertyBase
-                {
-                    type = "boolean",
-                    description = "Indicates if an immediate danger (e.g., pedestrian, obstacle) is detected."
-                },
-                danger_type = new SchemaPropertyEnum
-                {
-                    type = "string",
-                    description = "Specifies the type of danger if one is detected.",
-                    @enum = new string[] { "none", "obstacle", "pedestrian", "vehicle" }
-                },
                 detected_objects = new SchemaPropertyArray
                 {
                     type = "array",
@@ -183,13 +141,19 @@ public class VLMCarController : MonoBehaviour
                     items = new SchemaPropertyBase { type = "string" }
                 }
             },
-            required = new string[] { "danger_detected", "danger_type", "detected_objects" }
+            required = new string[] { "detected_objects" }
         };
 
-        // ▼▼▼ 修正: currentAiStateに関するログを削除 ▼▼▼
         Debug.Log("VLM Car Controller Initialized.");
+
+        // ▼▼▼ 追加: UIテキストの初期化 ▼▼▼
+        raycastText.text = "Raycast: All clear.";
+        triggerText.text = "Trigger: No target.";
+        VLMText.text = "VLM: Ready.";
+
+        // ▼▼▼ 追加: LineRendererの初期化 ▼▼▼
+        InitializeLineRenderer();
     }
-    
     
     void FixedUpdate()
     {
@@ -197,8 +161,6 @@ public class VLMCarController : MonoBehaviour
         float manualSteering = Input.GetAxis("Horizontal");
         bool manualBrake = Input.GetKey(KeyCode.Space);
 
-        // ▼▼▼ 修正: isInputFieldFocused のチェックと else (AI操縦) ブロックを削除 ▼▼▼
-        // 常に手動入力を車に適用
         Move(manualMotor, manualSteering, manualBrake);
         
         foreach (AxleInfo axleInfo in axleInfos)
@@ -206,38 +168,151 @@ public class VLMCarController : MonoBehaviour
             ApplyLocalPositionToVisuals(axleInfo.leftWheel);
             ApplyLocalPositionToVisuals(axleInfo.rightWheel);
         }
+
+        // ▼▼▼ 追加: 物理センサー（レイキャスト）を毎フレーム実行 ▼▼▼
+        CheckRaycastSensor();
     }
 
-    // ========== UIイベントハンドラ ==========
+    // ========== 物理センサー (レイキャスト) ==========
 
     /// <summary>
-    /// Photoボタンが押された時の処理 (変更なし)
+    /// ▼▼▼ 新規追加: LineRendererを初期化する関数 ▼▼▼
+    /// </summary>
+    private void InitializeLineRenderer()
+    {
+        // 車のオブジェクトに LineRenderer コンポーネントを追加
+        gameViewRaycastLine = gameObject.AddComponent<LineRenderer>();
+
+        // 線の設定
+        gameViewRaycastLine.positionCount = 2; // 線の頂点数 (始点と終点)
+        gameViewRaycastLine.startWidth = 0.05f; // 線の太さ
+        gameViewRaycastLine.endWidth = 0.05f;
+
+        // 線のマテリアル (重要！)
+        // Unity標準の "Default-Line" マテリアルを使用します
+        gameViewRaycastLine.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
+
+        // 線の色 (赤色)
+        gameViewRaycastLine.startColor = Color.red;
+        gameViewRaycastLine.endColor = Color.red;
+    }
+    
+    /// <summary>
+    /// ▼▼▼ 新規追加: レイキャストセンサーの処理 ▼▼▼
+    /// 車の真正面の物体までの「正確な距離」を測定する
+    /// </summary>
+    private void CheckRaycastSensor()
+    {
+        RaycastHit hit;
+        float maxDistance = 10.0f; // 10メートル先までスキャン
+        Vector3 rayOrigin = transform.position + new Vector3(0, 0.5f, 0); // 車の中心より少し上から撃つ
+
+        // レイキャストをデバッグ用にSceneビューに可視化（赤い線）
+        // Debug.DrawRay(rayOrigin, transform.forward * maxDistance, Color.red);
+
+        // ▼▼▼ 修正: LineRenderer の始点を設定 ▼▼▼
+        gameViewRaycastLine.SetPosition(0, rayOrigin);
+
+        // レイキャストを実行
+        if (Physics.Raycast(rayOrigin, transform.forward, out hit, maxDistance))
+        {
+            // 3メートル以内を「危険」と判断
+            if (hit.distance < 3.0f)
+            {
+                raycastText.text = $"Raycast: DANGER (object {hit.distance:F1} m)";
+            }
+            else // 3m以上10m未満
+            {
+                raycastText.text = $"Raycast: Warning (object {hit.distance:F1} m)";
+            }
+
+            // ▼▼▼ 追加: レイキャストのDebug.Log (状態が変わった時のみ) ▼▼▼
+            // 新しいオブジェクトに当たった瞬間にログを出す
+            if (lastRaycastTargetName != hit.collider.name)
+            {
+                Debug.Log($"Raycast Hit: {hit.collider.name} at {hit.distance:F1} m");
+                lastRaycastTargetName = hit.collider.name;
+            }
+
+            // ▼▼▼ 修正: LineRenderer の終点を「ぶつかった場所」に設定 ▼▼▼
+            gameViewRaycastLine.SetPosition(1, hit.point);
+        }
+        else
+        {
+            // --- UIの更新 (変更なし) ---
+            raycastText.text = "Raycast: All clear.";
+
+            // ▼▼▼ 追加: レイキャストのDebug.Log (状態が変わった時のみ) ▼▼▼
+            // オブジェクトを見失った瞬間にログを出す
+            if (lastRaycastTargetName != null)
+            {
+                Debug.Log($"Raycast Clear: {lastRaycastTargetName} is no longer in range.");
+                lastRaycastTargetName = null;
+            }
+
+            // ▼▼▼ 修正: LineRenderer の終点を「最大距離」に設定 ▼▼▼
+            Vector3 endPoint = rayOrigin + transform.forward * maxDistance;
+            gameViewRaycastLine.SetPosition(1, endPoint);
+        }
+    }
+
+    // ========== 物理センサー (トリガー) ==========
+
+    /// <summary>
+    /// ▼▼▼ 新規追加: トリガーゾーン（エリア）に何かが「入った」瞬間に呼ばれる ▼▼▼
+    /// </summary>
+    void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("Trigger Enter: " + other.name);
+        triggerText.text = $"Trigger: DANGER (object inside)";
+    }
+
+    /// <summary>
+    /// ▼▼▼ 新規追加: トリガーゾーンに何かが「留まっている」間、毎フレーム呼ばれる ▼▼▼
+    /// </summary>
+    void OnTriggerStay()
+    {
+        // "Stay" は毎フレーム呼ばれるので、UIがちらつくのを防ぐため Enter と同じ表示を維持
+        triggerText.text = $"Trigger: DANGER (object inside)";
+    }
+
+    /// <summary>
+    /// ▼▼▼ 新規追加: トリガーゾーンから何かが「出た」瞬間に呼ばれる ▼▼▼
+    /// </summary>
+    void OnTriggerExit(Collider other)
+    {
+        Debug.Log("Trigger Exit: " + other.name);
+        triggerText.text = "Trigger: No target.";
+    }
+
+    // ▼▼▼ 削除: 複雑な UpdateResponseText 関数 (不要になりました) ▼▼▼
+    // private void UpdateResponseText(string message) { ... }
+
+    // ========== UIイベントハンドラ (VLM) ==========
+
+    /// <summary>
+    /// Photoボタンが押された時の処理 (VLMの呼び出し)
     /// </summary>
     private void OnPhoto()
     {
-        // OnPhoto メソッド内のプロンプトをこう変えます
-        string fixedQuestion = "Analyze this third-person view. My car is the white car at the bottom of the frame. Your primary task is to detect collision risks. Any object visually close to my car (in the lower half of the image) IS an immediate collision risk. If you detect an immediate collision risk, set 'danger_detected' to true and 'danger_type' to an appropriate value (e.g., 'obstacle'). If, and only if, all objects are clearly far away (in the upper half of the image), set 'danger_detected' to false and 'danger_type' to 'none'. List all noteworthy objects in 'detected_objects'. Provide a structural JSON report.";
+        // ▼▼▼ 修正: プロンプトを「一人称視点」に変更 ▼▼▼
+        string fixedQuestion = "Analyze this picture. List all noteworthy objects you see.";
+        
         StartCoroutine(SendRequestToOllama(fixedQuestion));
     }
 
-    // ▼▼▼ 削除: OnSend メソッド ▼▼▼
-    // private void OnSend() { ... }
 
     // ========== VLMへのリクエスト送信 (共通コルーチン) ==========
     
-    /// <summary>
-    /// ▼▼▼ 修正: シグネチャ (引数) を簡略化 ▼▼▼
-    /// </summary>
     private IEnumerator SendRequestToOllama(string prompt)
     {
         if (isProcessing) yield break;
         isProcessing = true;
         SetUIInteractable(false);
-        if (responseText != null) responseText.text = "AI is processing your request...";
+        if (VLMText != null) VLMText.text = "VLM: Processing..."; // VLM処理中はUIを上書き
 
         string base64Image = null;
 
-        // ▼▼▼ 修正: includeImage=true を前提とし、画像キャプチャを常に行う ▼▼▼
         if (canvas != null) canvas.enabled = false;
         yield return null;
         Texture2D photo = CaptureCameraView(carCamera);
@@ -251,19 +326,17 @@ public class VLMCarController : MonoBehaviour
         {
             role = "user",
             content = prompt,
-            images = new string[] { base64Image } // 常に画像を含む
+            images = new string[] { base64Image } 
         };
 
         string jsonBody = "";
         
-        // ▼▼▼ 修正: コマンドスキーマ(OnSend)のロジックを削除 ▼▼▼
-        // 常に写真解析スキーマ (_photoSchema) を使用
         OllamaPhotoSchemaRequest requestData = new OllamaPhotoSchemaRequest
         {
             model = modelName,
             stream = false,
             messages = new Message[] { message },
-            format = _photoSchema // 常に _photoSchema を使用
+            format = _photoSchema 
         };
         jsonBody = JsonUtility.ToJson(requestData);
         Debug.Log("Sending JSON (Photo Schema Mode): " + jsonBody);
@@ -280,8 +353,7 @@ public class VLMCarController : MonoBehaviour
             if (request.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("Error: " + request.error);
-                if (responseText != null) responseText.text = "エラー: " + request.error;
-                // ▼▼▼ 削除: HandleLLMResponse("Stop") の呼び出し ▼▼▼
+                if (VLMText != null) VLMText.text = "VLM:\n Error: " + request.error;
             }
             else
             {
@@ -289,37 +361,20 @@ public class VLMCarController : MonoBehaviour
                 string responseMessage = response.message.content;
                 Debug.Log("Raw Response: " + responseMessage);
 
-                // ▼▼▼ 修正: コマンドスキーマ(OnSend)のロジックを削除 ▼▼▼
-                // OnPhoto (JSON解析モード) の場合の処理
                 try
                 {
                     AIPhotoResponse photoResponse = JsonUtility.FromJson<AIPhotoResponse>(responseMessage);
 
-                    // 応答を整形してUIに表示
-                    string formattedResponse = $"<b>Danger:</b> {photoResponse.danger_detected}\n" +
-                                             $"<b>Type:</b> {photoResponse.danger_type}\n" +
-                                             $"<b>Objects:</b> {string.Join(", ", photoResponse.detected_objects)}";
-
+                    // VLMの結果を表示 (これは UpdateResponseText を介さない)
+                    // string formattedResponse = $"<b>Objects:</b> {string.Join(", ", photoResponse.detected_objects)}";
+                    string formattedResponse = $"VLM: {string.Join(", ", photoResponse.detected_objects)}";
                     Debug.Log("VLM photo analysis: " + formattedResponse);
-                    if (responseText != null) responseText.text = formattedResponse;
-                    // 写真解析なので車は動かさない
+                    if (VLMText != null) VLMText.text = formattedResponse;
                 }
-                // try
-                // {
-                    
-                //     // OnPhoto (JSON解析モード) の場合の処理
-                //     string rawJsonResponse = responseMessage;
-                    
-                //     Debug.Log("VLM photo analysis (Raw JSON): " + rawJsonResponse);
-                //     if (responseText != null) responseText.text = rawJsonResponse;
-
-                //     // JSONとして有効かどうかのパース試行
-                //     JsonUtility.FromJson<AIPhotoResponse>(responseMessage);
-                // }
                 catch (System.Exception e)
                 {
                     Debug.LogError("AIのJSON応答の解析に失敗: " + e.Message + " | 応答: " + responseMessage);
-                    if (responseText != null) responseText.text = "AI Response (Invalid JSON): " + responseMessage;
+                    if (VLMText != null) VLMText.text = "VLM: Invalid JSON" + responseMessage;
                 }
             }
         }
@@ -327,28 +382,12 @@ public class VLMCarController : MonoBehaviour
         isProcessing = false;
     }
 
-    // ▼▼▼ 削除: HandleLLMResponse メソッド ▼▼▼
-    // private void HandleLLMResponse(string command) { ... }
-    
-    // ▼▼▼ 削除: ExecuteAiState メソッド ▼▼▼
-    // private void ExecuteAiState() { ... }
-
 // ========== ヘルパー関数 ==========
 
-    /// <summary>
-    /// UI要素の有効/無効をまとめて切り替える
-    /// </summary>
     private void SetUIInteractable(bool interactable)
     {
         photoButton.interactable = interactable;
-        
-        // ▼▼▼ 削除: sendButton, inputField 関連の処理 ▼▼▼
-        // sendButton.interactable = interactable;
-        // inputField.interactable = interactable;
-        // if (interactable) { ... }
     }
-
-    // (SaveImageToFile, CaptureCameraView, Move, ApplyLocalPositionToVisuals は変更なし)
     
     private void SaveImageToFile(byte[] bytes)
     {
@@ -418,7 +457,6 @@ public class VLMCarController : MonoBehaviour
 
 } // <- VLMCarControllerクラス
 
-// (AxleInfoクラスは変更なし)
 [System.Serializable]
 public class AxleInfo
 {
