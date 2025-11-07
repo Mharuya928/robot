@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+﻿ using UnityEngine;
 #if ENABLE_INPUT_SYSTEM 
 using UnityEngine.InputSystem;
 #endif
@@ -135,7 +135,7 @@ namespace StarterAssets
         private void Start()
         {
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
-
+            
             _hasAnimator = TryGetComponent(out _animator);
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
@@ -154,31 +154,6 @@ namespace StarterAssets
 
         private void Update()
         {
-            // 例: Pキーを押して入力の有効/無効を切り替える
-            if (UnityEngine.Input.GetKeyDown(KeyCode.RightShift))
-            {
-                // 現在の入力状態を確認し、逆の状態にする
-                if (_playerInput.inputIsActive)
-                {
-                    _playerInput.DeactivateInput();
-                    Debug.Log("Player Input DEACTIVATED");
-                }
-                else
-                {
-                    _playerInput.ActivateInput();
-                    Debug.Log("Player Input ACTIVATED");
-                }
-            }
-
-            // 入力が無効な場合は、以降の処理を実行しないようにする
-            // if (!_playerInput.inputIsActive)
-            // {
-            //     // 入力が無効になった瞬間の移動などが残らないように、入力値をリセット
-            //     _input.move = Vector2.zero;
-            //     _input.sprint = false;
-
-            //     // return; // ここで処理を中断させても良い
-            // }
             _hasAnimator = TryGetComponent(out _animator);
 
             JumpAndGravity();
