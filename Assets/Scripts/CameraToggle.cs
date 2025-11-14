@@ -16,8 +16,10 @@ public class CameraToggle : MonoBehaviour
     private CameraClearFlags originalClearFlags;
     private int originalCullingMask;
 
+    // ▼▼▼ 修正点 1 ▼▼▼
     // 現在の状態 (true = 3D世界が見えている)
-    private bool isWorldVisible = true;
+    // デフォルトを false (非表示) に変更
+    private bool isWorldVisible = false;
 
     void Start()
     {
@@ -32,6 +34,12 @@ public class CameraToggle : MonoBehaviour
         // カメラの元の設定を保存
         originalClearFlags = mainCamera.clearFlags;
         originalCullingMask = mainCamera.cullingMask;
+
+        // ▼▼▼ 修正点 2 ▼▼▼
+        // 起動時に「非表示」状態を強制的に適用する
+        mainCamera.clearFlags = hiddenClearFlags;
+        mainCamera.backgroundColor = hiddenBackgroundColor;
+        mainCamera.cullingMask = hiddenCullingMask;
     }
 
     void Update()
