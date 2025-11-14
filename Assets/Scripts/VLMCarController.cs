@@ -323,9 +323,17 @@ public class VLMCarController : MonoBehaviour
         string base64Image = null;
 
         // if (canvas != null) canvas.enabled = false;
+
+        // ▼▼▼ 修正: 写真を撮る前に LineRenderer を非表示にする ▼▼▼
+        if (gameViewRaycastLine != null) gameViewRaycastLine.enabled = false;
+
         yield return null;
         Texture2D photo = CaptureCameraView(carCamera);
-        if (canvas != null) canvas.enabled = true;
+
+        // ▼▼▼ 修正: 写真を撮ったら LineRenderer を再表示する ▼▼▼
+        if (gameViewRaycastLine != null) gameViewRaycastLine.enabled = true;
+
+        // if (canvas != null) canvas.enabled = true;
         byte[] bytes = photo.EncodeToJPG();
         SaveImageToFile(bytes);
         base64Image = System.Convert.ToBase64String(bytes);
