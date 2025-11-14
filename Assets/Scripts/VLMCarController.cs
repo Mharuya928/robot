@@ -322,7 +322,7 @@ public class VLMCarController : MonoBehaviour
 
         string base64Image = null;
 
-        if (canvas != null) canvas.enabled = false;
+        // if (canvas != null) canvas.enabled = false;
         yield return null;
         Texture2D photo = CaptureCameraView(carCamera);
         if (canvas != null) canvas.enabled = true;
