@@ -88,10 +88,14 @@ public class VLMCarController : MonoBehaviour
     public string ollamaUrl = "http://localhost:11434/api/chat";
     public string modelName = "qwen2.5vl:8b";
 
+    // ▼▼▼ 追加: VLM起動用のキーをInspectorから設定できるようにする ▼▼▼
+    [Tooltip("VLM（写真撮影）を起動するキー")]
+    public KeyCode vlmActivationKey = KeyCode.Tab; // デフォルトは 'Tab' キー
+
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
 
-    private Button photoButton;
+    // private Button photoButton;
     // ▼▼▼ 修正: テキスト変数を3つに分離 ▼▼▼
     [Header("UI Text Fields")]
     [SerializeField] private TMP_Text raycastText; // レイキャスト（距離）用
@@ -108,25 +112,22 @@ public class VLMCarController : MonoBehaviour
     
     private PhotoFormatSchema _photoSchema; 
 
-
-
-
     void Start()
     {
         if (canvas != null)
-        {
-            Transform photoButtonTransform = canvas.transform.Find("photoButton");
-            if (photoButtonTransform != null) photoButton = photoButtonTransform.GetComponent<Button>();
-        }
+        // {
+        //     Transform photoButtonTransform = canvas.transform.Find("photoButton");
+        //     if (photoButtonTransform != null) photoButton = photoButtonTransform.GetComponent<Button>();
+        // }
         if (carCamera == null) { Debug.LogError("Target Camera が設定されていません"); return; }
-        if (photoButton == null) { Debug.LogError("photoButton (Button) が見つかりません"); return; }
+        // if (photoButton == null) { Debug.LogError("photoButton (Button) が見つかりません"); return; }
 
         // ▼▼▼ 修正: 3つのテキストが設定されているか確認 ▼▼▼
         if (raycastText == null) { Debug.LogError("raycastText が設定されていません"); return; }
         if (triggerText == null) { Debug.LogError("triggerText が設定されていません"); return; }
         if (VLMText == null) { Debug.LogError("VLMText が設定されていません"); return; }
         
-        photoButton.onClick.AddListener(OnPhoto);
+        // photoButton.onClick.AddListener(OnPhoto);
         
         // 写真解析用のJSONスキーマを定義 (物体検出のみ)
         _photoSchema = new PhotoFormatSchema
@@ -154,7 +155,15 @@ public class VLMCarController : MonoBehaviour
         // ▼▼▼ 追加: LineRendererの初期化 ▼▼▼
         InitializeLineRenderer();
     }
-    
+
+    void Update()
+    {
+        if(Input.GetKeyDown(vlmActivationKey) && !isProcessing)
+        {
+            OnPhoto();
+        }
+    }
+
     void FixedUpdate()
     {
         float manualMotor = Input.GetAxis("Vertical");
@@ -308,7 +317,7 @@ public class VLMCarController : MonoBehaviour
     {
         if (isProcessing) yield break;
         isProcessing = true;
-        SetUIInteractable(false);
+        // SetUIInteractable(false);
         if (VLMText != null) VLMText.text = "VLM: Processing..."; // VLM処理中はUIを上書き
 
         string base64Image = null;
@@ -378,16 +387,16 @@ public class VLMCarController : MonoBehaviour
                 }
             }
         }
-        SetUIInteractable(true);
+        // SetUIInteractable(true);
         isProcessing = false;
     }
 
 // ========== ヘルパー関数 ==========
 
-    private void SetUIInteractable(bool interactable)
-    {
-        photoButton.interactable = interactable;
-    }
+    // private void SetUIInteractable(bool interactable)
+    // {
+    //     photoButton.interactable = interactable;
+    // }
     
     private void SaveImageToFile(byte[] bytes)
     {
