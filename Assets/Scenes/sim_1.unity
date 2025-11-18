@@ -2110,8 +2110,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 879cd94f325491641a804d50480a42f7, type: 2}
+  m_sharedMaterial: {fileID: -6543970490032269164, guid: 879cd94f325491641a804d50480a42f7, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2677,9 +2677,10 @@ GameObject:
   m_Component:
   - component: {fileID: 1064351407}
   - component: {fileID: 1064351406}
-  - component: {fileID: 1064351408}
   - component: {fileID: 1064351409}
   - component: {fileID: 1064351410}
+  - component: {fileID: 1064351411}
+  - component: {fileID: 1064351412}
   m_Layer: 0
   m_Name: carRoot
   m_TagString: Player
@@ -2734,39 +2735,6 @@ Transform:
   - {fileID: 717781545}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1064351408
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1064351404}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3157ce03a58483302b01f1debf7cf5d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  axleInfos:
-  - leftWheel: {fileID: 678331680}
-    rightWheel: {fileID: 303141928}
-    motor: 1
-    steering: 1
-  - leftWheel: {fileID: 1103503398}
-    rightWheel: {fileID: 676998640}
-    motor: 0
-    steering: 0
-  maxMotorTorque: 400
-  maxBrakeTorque: 600
-  maxSteeringAngle: 30
-  canvas: {fileID: 568765492}
-  carCamera: {fileID: 788334834}
-  ollamaUrl: http://localhost:11434/api/chat
-  modelName: qwen2.5vl:7b
-  vlmActivationKey: 9
-  saveFolderName: Images
-  raycastText: {fileID: 1268779902}
-  triggerText: {fileID: 648360497}
-  VLMText: {fileID: 812077236}
 --- !u!114 &1064351409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2802,6 +2770,51 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.8, y: 1, z: 3}
   m_Center: {x: 0, y: 0.25, z: 0}
+--- !u!114 &1064351411
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064351404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da1e985b410a080839de793bd81a2085, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  axleInfos:
+  - leftWheel: {fileID: 678331680}
+    rightWheel: {fileID: 303141928}
+    motor: 1
+    steering: 1
+  - leftWheel: {fileID: 678331680}
+    rightWheel: {fileID: 303141928}
+    motor: 0
+    steering: 0
+  maxMotorTorque: 400
+  maxBrakeTorque: 600
+  maxSteeringAngle: 30
+  raycastText: {fileID: 1268779902}
+  triggerText: {fileID: 648360497}
+--- !u!114 &1064351412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064351404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  config: {fileID: 11400000, guid: 5a03b4119f53e1011a9aa960fe3cd536, type: 2}
+  carController: {fileID: 1064351411}
+  carCamera: {fileID: 788334834}
+  VLMText: {fileID: 812077236}
+  ollamaUrl: http://localhost:11434/api/chat
+  vlmActivationKey: 9
+  saveFolderName: Images
 --- !u!1 &1092643525
 GameObject:
   m_ObjectHideFlags: 3

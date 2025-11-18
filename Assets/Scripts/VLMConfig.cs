@@ -1,21 +1,12 @@
 using UnityEngine;
+using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "NewVLMConfig", menuName = "VLM Config")]
+[CreateAssetMenu(fileName = "NewVLMConfig", menuName = "VLM/Config")]
 public class VLMConfig : ScriptableObject
 {
-    [Header("Model Settings")]
     public string modelName = "qwen2.5vl:7b";
+    [TextArea(3, 10)] public string prompt = "Analyze this scene.";
 
-    [Header("Prompt Settings")]
-    [TextArea(3, 10)]
-    public string prompt = "Analyze this picture. List all noteworthy objects you see.";
-
-    [Header("Schema Settings")]
-    public SchemaType schemaType = SchemaType.ObjectDetection;
-
-    public enum SchemaType
-    {
-        ObjectDetection,
-        FreeForm
-    }
+    // ▼▼▼ 修正: 単にモジュールをドラッグ＆ドロップするリストにする ▼▼▼
+    public List<VLMSchemaModule> activeModules = new List<VLMSchemaModule>();
 }

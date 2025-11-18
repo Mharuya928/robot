@@ -10,8 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5e62fdb725f8b0e00a7829f5d45ab4ea, type: 3}
-  m_Name: VLMConfig1
+  m_Name: Config2
   m_EditorClassIdentifier: 
   modelName: qwen2.5vl:7b
-  prompt: Analyze this picture. List all noteworthy objects you see.
-  schemaType: 0
+  prompt: Analyze this scene.
+  activeModules:
+  - {fileID: 11400000, guid: 32775418db8cb5df8b621ea4eef2d7b1, type: 2}

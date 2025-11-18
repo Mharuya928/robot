@@ -3,20 +3,21 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Networking;
 using System.Collections;
-using System.IO;
+using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions; // 正規表現を使用
+using System.IO;
 
 public class VLMClient : MonoBehaviour
 {
     [Header("Config")]
-    [Tooltip("ここに作成した設定ファイル(VLMConfig)をセットする")]
-    public VLMConfig config; 
+    [Tooltip("作成した設定ファイル(VLMConfig)をセットしてください")]
+    public VLMConfig config;
 
     [Header("Dependencies")]
     [Tooltip("撮影時に線を消すために制御するCarController")]
-    public CarController carController; 
+    public CarController carController;
     public Camera carCamera;
-    public Canvas canvas;
     [SerializeField] private TMP_Text VLMText;
 
     [Header("Ollama Connection")]
@@ -28,16 +29,16 @@ public class VLMClient : MonoBehaviour
 
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
-    
+
     private bool isProcessing = false;
 
     void Start()
     {
-        // 必須コンポーネントのチェック
+        // 必須設定のチェック
         if (config == null) Debug.LogError("VLM Config が設定されていません！ Projectウィンドウで作成してセットしてください。");
         if (carCamera == null) Debug.LogError("Target Camera が設定されていません");
-        
-        if (VLMText != null) 
+
+        if (VLMText != null)
         {
             string modelName = config != null ? config.modelName : "Unknown";
             VLMText.text = $"VLM: Ready ({modelName})";
@@ -49,107 +50,78 @@ public class VLMClient : MonoBehaviour
     void Update()
     {
         // キー入力で撮影開始
-        if(Input.GetKeyDown(vlmActivationKey) && !isProcessing && config != null)
+        if (Input.GetKeyDown(vlmActivationKey) && !isProcessing && config != null)
         {
-            OnPhoto();
+            StartCoroutine(SendRequestToOllama());
         }
     }
 
-    // ========== UIイベントハンドラ ==========
+    // ========== メイン処理 ==========
 
-    private void OnPhoto()
-    {
-        // 設定ファイル(config)内のプロンプトを使用してリクエスト開始
-        StartCoroutine(SendRequestToOllama(config.prompt));
-    }
-    
-    // ========== VLMへのリクエスト送信 ==========
-    
-    private IEnumerator SendRequestToOllama(string prompt)
+private IEnumerator SendRequestToOllama()
     {
         if (isProcessing) yield break;
         isProcessing = true;
-        
+
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
-        // --- 1. 画像撮影シーケンス ---
+        // --- 1. 画像撮影 (変更なし) ---
         string base64Image = null;
-
-        // レイキャストの線（LineRenderer）を一時的に消す
         if (carController != null) carController.SetRaycastLineVisibility(false);
-
-        yield return null; // 1フレーム待機して描画更新を待つ
-
-        // 撮影
+        yield return null; 
         Texture2D photo = CaptureCameraView(carCamera);
-
-        // 線を戻す
         if (carController != null) carController.SetRaycastLineVisibility(true);
-
-        // 画像の保存とエンコード
         byte[] bytes = photo.EncodeToJPG();
-        SaveImageToFile(bytes);
         base64Image = System.Convert.ToBase64String(bytes);
         Destroy(photo);
         // ---------------------------
 
-        // メッセージの作成
-        var message = new Message
-        {
-            role = "user",
-            content = prompt,
-            images = new string[] { base64Image } 
-        };
+        // エスケープ処理
+        string safePrompt = config.prompt.Replace("\"", "\\\"").Replace("\n", "\\n");
 
-        string jsonBody = "";
-
-        // --- 2. 設定(Config)に応じたリクエスト作成 ---
+        // ▼▼▼ 修正: モジュールがあるかないかで JSON の作り方を変える ▼▼▼
         
-        if (config.schemaType == VLMConfig.SchemaType.FreeForm)
+        string jsonBody = "";
+        bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
+
+        if (isFreeForm)
         {
-            // パターンA: スキーマなし (通常のチャット形式)
-            OllamaRequest requestData = new OllamaRequest
-            {
-                model = config.modelName,
-                stream = false,
-                messages = new Message[] { message }
-            };
-            jsonBody = JsonUtility.ToJson(requestData);
+            // パターンA: モジュールなし (Free Form) -> "format" を含めない
+            jsonBody = $@"
+            {{
+                ""model"": ""{config.modelName}"",
+                ""stream"": false,
+                ""messages"": [
+                    {{
+                        ""role"": ""user"",
+                        ""content"": ""{safePrompt}"",
+                        ""images"": [""{base64Image}""]
+                    }}
+                ]
+            }}";
         }
         else
         {
-            // パターンB: JSONスキーマあり (構造化出力)
-            // 現在は "ObjectDetection" 用のスキーマを生成
-            PhotoFormatSchema schemaFormat = null;
-
-            if (config.schemaType == VLMConfig.SchemaType.ObjectDetection)
-            {
-                schemaFormat = new PhotoFormatSchema
-                {
-                    type = "object",
-                    properties = new PhotoFormatProperties { 
-                        detected_objects = new SchemaPropertyArray { 
-                            type = "array", 
-                            items = new SchemaPropertyBase { type = "string" } 
-                        } 
-                    },
-                    required = new string[] { "detected_objects" }
-                };
-            }
-            // ※ 必要に応じてここに他のスキーマタイプの定義を追加可能
-
-            OllamaPhotoSchemaRequest requestData = new OllamaPhotoSchemaRequest
-            {
-                model = config.modelName,
-                stream = false,
-                messages = new Message[] { message },
-                format = schemaFormat
-            };
-            jsonBody = JsonUtility.ToJson(requestData);
+            // パターンB: モジュールあり (Schema Mode) -> "format" を含める
+            string schemaJson = BuildDynamicSchemaJson(config.activeModules);
+            
+            jsonBody = $@"
+            {{
+                ""model"": ""{config.modelName}"",
+                ""stream"": false,
+                ""messages"": [
+                    {{
+                        ""role"": ""user"",
+                        ""content"": ""{safePrompt}"",
+                        ""images"": [""{base64Image}""]
+                    }}
+                ],
+                ""format"": {schemaJson}
+            }}";
         }
-        
-        Debug.Log($"Sending JSON ({config.schemaType}): " + jsonBody);
-        
+
+        Debug.Log($"Sending Request (FreeForm: {isFreeForm})");
+
         // --- 3. 通信処理 ---
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
         {
@@ -162,48 +134,158 @@ public class VLMClient : MonoBehaviour
 
             if (request.result != UnityWebRequest.Result.Success)
             {
+                // エラー処理 (省略)
                 Debug.LogError("Error: " + request.error);
-                if (VLMText != null) VLMText.text = "VLM Error: " + request.error;
+                if (VLMText != null) VLMText.text = "Error: " + request.error;
             }
             else
             {
-                string responseMessage = JsonUtility.FromJson<OllamaResponse>(request.downloadHandler.text).message.content;
-                Debug.Log("Raw Response: " + responseMessage);
+                string rawJson = request.downloadHandler.text;
+                string contentJson = ExtractContent(rawJson);
+                Debug.Log("AI Response: " + contentJson);
 
-                // --- 4. 応答のパース ---
-                try
+                // ▼▼▼ 修正: 表示処理の分岐 ▼▼▼
+                if (isFreeForm)
                 {
-                    if (config.schemaType == VLMConfig.SchemaType.ObjectDetection)
-                    {
-                        // JSONとしてパースして表示
-                        AIPhotoResponse photoResponse = JsonUtility.FromJson<AIPhotoResponse>(responseMessage);
-                        string formatted = $"Objects: {string.Join(", ", photoResponse.detected_objects)}";
-                        if (VLMText != null) VLMText.text = formatted;
-                    }
-                    else
-                    {
-                        // そのまま表示 (FreeForm)
-                        if (VLMText != null) VLMText.text = responseMessage;
-                    }
+                    // Free Form ならそのままテキストを表示
+                    if (VLMText != null) VLMText.text = contentJson;
                 }
-                catch (System.Exception e)
+                else
                 {
-                    Debug.LogError("JSON Parse Error: " + e.Message);
-                    // パース失敗時は生の応答を表示しておく
-                    if (VLMText != null) VLMText.text = "VLM (Raw): " + responseMessage;
+                    // Schema Mode ならパースして表示
+                    DisplayDynamicResult(contentJson);
                 }
             }
         }
-        
+
         isProcessing = false;
     }
 
-    // ========== ヘルパー関数 ==========
+    // ========== 🛠️ 動的ロジック ==========
+
+    /// <summary>
+    /// Configに登録されたモジュールから、JSON Schema文字列を動的に生成する
+    /// </summary>
+    private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append(@"{ ""type"": ""object"", ""properties"": {");
+
+        List<string> requiredKeys = new List<string>();
+        List<string> props = new List<string>();
+
+        foreach (var module in modules)
+        {
+            if (module == null) continue;
+
+            foreach (var prop in module.properties)
+            {
+                // 必須キーとして追加
+                requiredKeys.Add($"\"{prop.name}\"");
+
+                string typeDef = "";
+                if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum)
+                {
+                    // Enumの場合は選択肢を展開 (カンマ区切り文字列を配列に変換)
+                    string[] opts = prop.enumOptions.Split(',');
+                    // 各要素をダブルクォートで囲む
+                    for(int i=0; i<opts.Length; i++) opts[i] = opts[i].Trim(); 
+                    string enumStr = string.Join("\",\"", opts); 
+                    
+                    typeDef = $@"{{ ""type"": ""string"", ""enum"": [""{enumStr}""], ""description"": ""{prop.description}"" }}";
+                }
+                else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Boolean)
+                {
+                    typeDef = $@"{{ ""type"": ""boolean"", ""description"": ""{prop.description}"" }}";
+                }
+                else
+                {
+                    // String
+                    typeDef = $@"{{ ""type"": ""string"", ""description"": ""{prop.description}"" }}";
+                }
+                
+                props.Add($"\"{prop.name}\": {typeDef}");
+            }
+        }
+
+        // プロパティを結合
+        sb.Append(string.Join(",", props));
+        sb.Append(@"}, ""required"": [");
+        sb.Append(string.Join(",", requiredKeys));
+        sb.Append("] }");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// AIからのJSON応答を正規表現で解析し、UIに綺麗に表示する
+    /// </summary>
+    private void DisplayDynamicResult(string jsonResponse)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        // アクティブなモジュール順に表示を作る
+        foreach (var module in config.activeModules)
+        {
+            if (module == null) continue;
+
+            sb.AppendLine($"<b>[{module.moduleName}]</b>");
+            
+            foreach (var prop in module.properties)
+            {
+                // 正規表現で値を探す: "key" : "value" または "key": value
+                // (簡易的なパーサですが、Ollamaの構造化出力なら概ね動作します)
+                string pattern = $"\"{prop.name}\"\\s*:\\s*\"?(.*?)\"?\\s*(,|}})";
+                Match match = Regex.Match(jsonResponse, pattern);
+
+                if (match.Success)
+                {
+                    // 値を取得
+                    string val = match.Groups[1].Value.Trim();
+                    // 末尾の引用符などが残っていたら削除
+                    val = val.Trim('"');
+
+                    // 色付け (Enumで危険度などを強調したい場合の例)
+                    string displayVal = val;
+                    if (val.ToLower() == "high" || val.ToLower() == "danger" || val.ToLower() == "true") 
+                        displayVal = $"<color=red>{val}</color>";
+                    else if (val.ToLower() == "safe" || val.ToLower() == "false")
+                        displayVal = $"<color=green>{val}</color>";
+                    else
+                        displayVal = $"<color=yellow>{val}</color>";
+
+                    sb.AppendLine($"- {prop.name}: {displayVal}");
+                }
+                else
+                {
+                    sb.AppendLine($"- {prop.name}: <color=grey>(Not found)</color>");
+                }
+            }
+            sb.AppendLine(); // モジュール間の空行
+        }
+
+        if (VLMText != null) VLMText.text = sb.ToString();
+    }
+
+    // OllamaのレスポンスJSONから .message.content の中身だけ抜くヘルパー
+    private string ExtractContent(string fullJson)
+    {
+        try
+        {
+            return JsonUtility.FromJson<OllamaResponse>(fullJson).message.content;
+        }
+        catch
+        {
+            return fullJson; // パース失敗時はそのまま返す
+        }
+    }
+
+    // ========== ヘルパー関数 (画像処理など) ==========
 
     private void SaveImageToFile(byte[] bytes)
     {
         #if UNITY_EDITOR
-        string folderPath = Path.Combine(Application.dataPath, saveFolderName); 
+        string folderPath = Path.Combine(Application.dataPath, saveFolderName);
         if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
         string fileName = $"capture_{System.DateTime.Now:yyyy-MM-dd_HH-mm-ss}.jpg";
         string filePath = Path.Combine(folderPath, fileName);
@@ -220,25 +302,21 @@ public class VLMClient : MonoBehaviour
         Texture2D screenshot = new Texture2D(camera.pixelWidth, camera.pixelHeight, TextureFormat.RGB24, false);
         screenshot.ReadPixels(new Rect(0, 0, camera.pixelWidth, camera.pixelHeight), 0, 0);
         screenshot.Apply();
-        camera.targetTexture = null; 
-        RenderTexture.active = null; 
-        Destroy(renderTexture); 
+        camera.targetTexture = null;
+        RenderTexture.active = null;
+        Destroy(renderTexture);
         return screenshot;
     }
 
-    // --- データ定義クラス (JSON用) ---
-    [System.Serializable] public class OllamaRequest { public string model; public bool stream; public Message[] messages; }
-    [System.Serializable] public class Message { public string role; public string content; public string[] images; }
-    [System.Serializable] public class OllamaResponse { public ResponseMessage message; }
-    [System.Serializable] public class ResponseMessage { public string role; public string content; }
-    
-    // スキーマ付きリクエスト用
-    [System.Serializable] public class OllamaPhotoSchemaRequest { public string model; public bool stream; public Message[] messages; public PhotoFormatSchema format; }
-    [System.Serializable] public class PhotoFormatSchema { public string type = "object"; public PhotoFormatProperties properties; public string[] required; }
-    [System.Serializable] public class PhotoFormatProperties { public SchemaPropertyArray detected_objects; }
-    [System.Serializable] public class SchemaPropertyBase { public string type; public string description; }
-    [System.Serializable] public class SchemaPropertyArray : SchemaPropertyBase { public SchemaPropertyBase items; }
-    
-    // 応答パース用
-    [System.Serializable] public class AIPhotoResponse { public string[] detected_objects; }
+    // Unity JsonUtility用のラッパークラス (外側のレスポンス用)
+    [System.Serializable]
+    public class OllamaResponse
+    {
+        public ResponseMessage message;
+    }
+    [System.Serializable]
+    public class ResponseMessage
+    {
+        public string content;
+    }
 }
