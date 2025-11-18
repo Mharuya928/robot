@@ -1,202 +1,189 @@
-// using UnityEngine;
-// using UnityEngine.UI;
-// using TMPro;
-// using System.Collections.Generic;
-// using System.Reflection;
-// using UnityEngine.EventSystems;
+using UnityEngine;
+using TMPro;
+using System.Collections.Generic;
 
-// // LLMによって呼び出される関数を定義する静的クラス
-// public static class CarCommands
-// {
-//     public static string Forward() { return "Forward"; }
-//     public static string Backward() { return "Backward"; }
-//     public static string TurnLeft() { return "TurnLeft"; }
-//     public static string TurnRight() { return "TurnRight"; }
-//     public static string Stop() { return "Stop"; }
-// }
+// 車輪情報のクラス
+[System.Serializable]
+public class AxleInfo
+{
+    public WheelCollider leftWheel;
+    public WheelCollider rightWheel;
+    public bool motor;
+    public bool steering;
+}
 
-// public class CarController : MonoBehaviour
-// {
-//     // ========== 車の物理制御に関する変数 ==========
-//     [Header("Car Physics Settings")]
-//     public List<AxleInfo> axleInfos; // 各車軸の情報
-//     public float maxMotorTorque;     // ホイールの最大トルク
-//     public float maxBrakeTorque;     // ブレーキの最大トルク（この行を追加）
-//     public float maxSteeringAngle;   // ハンドルの最大角度
+public class CarController : MonoBehaviour
+{
+    [Header("Car Physics Settings")]
+    public List<AxleInfo> axleInfos;
+    public float maxMotorTorque;
+    public float maxBrakeTorque;
+    public float maxSteeringAngle;
 
-//     // ========== AIとUI連携に関する変数 ==========
-//     [Header("AI and UI Settings")]
-//     public TMP_InputField inputField;
+    [Header("Sensor UI")]
+    [SerializeField] private TMP_Text raycastText; // レイキャスト（距離）用
+    [SerializeField] private TMP_Text triggerText; // トリガー（ゾーン）用
 
-//     private bool isInputFieldFocused = false;
+    // 内部変数
+    private string lastRaycastTargetName = null;
+    private LineRenderer gameViewRaycastLine;
 
-//     // ========== AIによる状態管理 ==========
-//     // AIが命令した車の現在の状態を定義
-//     private enum AiState
-//     {
-//         Idle,
-//         Forward,
-//         Backward,
-//         TurnRight,
-//         TurnLeft,
-//         Braking 
-//     }
-//     // AIによる現在の命令状態を保存する変数。初期状態は停止。
-//     private AiState currentAiState = AiState.Idle;
-//     // ========== 初期化処理 ==========
-//     void Start()
-//     {
-//         inputField.onSelect.AddListener((_) => isInputFieldFocused = true);
-//         inputField.onDeselect.AddListener((_) => isInputFieldFocused = false);
-//         inputField.onSubmit.AddListener(OnInputFieldSubmit);
-//     }
+    void Start()
+    {
+        // UIチェック
+        if (raycastText == null) Debug.LogError("raycastText が設定されていません");
+        if (triggerText == null) Debug.LogError("triggerText が設定されていません");
 
-//     //     // ========== 物理演算と状態の実行 ==========
-//     void FixedUpdate()
-//     {
-//         float motor = 0;
-//         float steering = 0;
+        // 初期化
+        if (raycastText != null) raycastText.text = "Raycast: All clear.";
+        if (triggerText != null) triggerText.text = "Trigger: No target.";
 
-//         // プレイヤーがキーボードで手動操作しているかチェック
-//         float manualMotor = Input.GetAxis("Vertical");
-//         float manualSteering = Input.GetAxis("Horizontal");
+        InitializeLineRenderer();
+        Debug.Log("Car Controller Initialized.");
+    }
 
-//         // 手動操作中（InputFieldが非選択かつキー入力がある）の場合
-//         if (!isInputFieldFocused && (manualMotor != 0 || manualSteering != 0))
-//         {
-//             // 手動操作を優先し、AIの状態をリセットする
-//             motor = manualMotor;
-//             steering = manualSteering;
-//             currentAiState = AiState.Idle;
-//         }
-//         else
-//         {
-//             // 手動操作がない場合は、AIの状態に従って動作する
-//             switch (currentAiState)
-//             {
-//                 case AiState.Forward:
-//                     motor = 1.0f;
-//                     steering = 0f;
-//                     break;
-//                 case AiState.Backward:
-//                     motor = -1.0f;
-//                     steering = 0f;
-//                     break;
-//                 case AiState.TurnRight:
-//                     motor = 0.8f;
-//                     steering = 1.0f;
-//                     break;
-//                 case AiState.TurnLeft:
-//                     motor = 0.8f;
-//                     steering = -1.0f;
-//                     break;
-//                 case AiState.Braking:
-//                 case AiState.Idle:
-//                     motor = 0f;
-//                     steering = 0f;
-//                     break;
-//             }
-//         }
+    void FixedUpdate()
+    {
+        // 車の移動処理
+        float manualMotor = Input.GetAxis("Vertical");
+        float manualSteering = Input.GetAxis("Horizontal");
+        bool manualBrake = Input.GetKey(KeyCode.Space);
 
-//         bool isBraking = Input.GetKey(KeyCode.Space) || currentAiState == AiState.Braking;
-//         Move(motor, steering, isBraking);
+        Move(manualMotor, manualSteering, manualBrake);
+        
+        // 車輪の見た目を更新
+        foreach (AxleInfo axleInfo in axleInfos)
+        {
+            ApplyLocalPositionToVisuals(axleInfo.leftWheel);
+            ApplyLocalPositionToVisuals(axleInfo.rightWheel);
+        }
 
-//         // ホイールの見た目を更新
-//         foreach (AxleInfo axleInfo in axleInfos)
-//         {
-//             ApplyLocalPositionToVisuals(axleInfo.leftWheel);
-//             ApplyLocalPositionToVisuals(axleInfo.rightWheel);
-//         }
-//     }
+        // センサー処理
+        CheckRaycastSensor();
+    }
+
+    // ========== 公開メソッド (VLMから呼び出す用) ==========
+
+    /// <summary>
+    /// 写真撮影時にレイキャストの線を消すためのメソッド
+    /// </summary>
+    public void SetRaycastLineVisibility(bool isVisible)
+    {
+        if (gameViewRaycastLine != null)
+        {
+            gameViewRaycastLine.enabled = isVisible;
+        }
+    }
+
+    // ========== 物理センサー (レイキャスト) ==========
+
+    private void InitializeLineRenderer()
+    {
+        gameViewRaycastLine = gameObject.AddComponent<LineRenderer>();
+        gameViewRaycastLine.positionCount = 2; 
+        gameViewRaycastLine.startWidth = 0.05f; 
+        gameViewRaycastLine.endWidth = 0.05f;
+        gameViewRaycastLine.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
+        gameViewRaycastLine.startColor = Color.red;
+        gameViewRaycastLine.endColor = Color.red;
+    }
     
-//     async void OnInputFieldSubmit(string message)
-//     {
-//         if (string.IsNullOrWhiteSpace(message))
-//         {
-//             // EventSystem.current.SetSelectedGameObject(null);
-//             EventSystem.current.SetSelectedGameObject(inputField.gameObject);
-//             Debug.Log("Input field is empty.");
-//             return;
-//         }
+    private void CheckRaycastSensor()
+    {
+        RaycastHit hit;
+        float maxDistance = 10.0f; 
+        Vector3 rayOrigin = transform.position + new Vector3(0, 0.5f, 0); 
 
-//         Debug.Log("Input field submitted: " + message);
-//         inputField.interactable = false;
-//         string functionName = "";
-//         Debug.Log($"LLM suggested function: {functionName}");
+        // LineRenderer の始点を設定
+        if(gameViewRaycastLine != null) gameViewRaycastLine.SetPosition(0, rayOrigin);
 
-//         // LLMの応答に基づいてAIの状態を変更する
-//         HandleLLMResponse(functionName);
+        if (Physics.Raycast(rayOrigin, transform.forward, out hit, maxDistance))
+        {
+            if (hit.distance < 3.0f)
+            {
+                if(raycastText) raycastText.text = $"Raycast: DANGER (object {hit.distance:F1} m)";
+            }
+            else 
+            {
+                if(raycastText) raycastText.text = $"Raycast: Warning (object {hit.distance:F1} m)";
+            }
 
-//         inputField.interactable = true;
-//         inputField.text = "";
-//         EventSystem.current.SetSelectedGameObject(inputField.gameObject);
-//         // EventSystem.current.SetSelectedGameObject(null); // Enterキー押下後、フォーカスを外す
-//     }
+            if (lastRaycastTargetName != hit.collider.name)
+            {
+                Debug.Log($"Raycast Hit: {hit.collider.name} at {hit.distance:F1} m");
+                lastRaycastTargetName = hit.collider.name;
+            }
 
-//     // LLMの応答（関数名）に基づいて、AIの状態（currentAiState）を変更する
-//     private void HandleLLMResponse(string command)
-//     {
-//         switch (command)
-//         {
-//             case "Forward":
-//                 currentAiState = AiState.Forward;
-//                 break;
-//             case "Backward":
-//                 currentAiState = AiState.Backward;
-//                 break;
-//             case "TurnRight":
-//                 currentAiState = AiState.TurnRight;
-//                 break;
-//             case "TurnLeft":
-//                 currentAiState = AiState.TurnLeft;
-//                 break;
-//             case "Stop":
-//                 currentAiState = AiState.Braking;
-//                 break;
-//             default:
-//                 Debug.Log("Invalid command received. Setting state to Idle.");
-//                 currentAiState = AiState.Braking;
-//                 break;
-//         }
-//     }
+            // LineRenderer の終点を設定
+            if(gameViewRaycastLine != null) gameViewRaycastLine.SetPosition(1, hit.point);
+        }
+        else
+        {
+            if(raycastText) raycastText.text = "Raycast: All clear.";
 
-//     // ========== 車のコア機能 ==========
-//     public void Move(float motorInput, float steeringInput, bool isBraking) 
-//     {
-//         /* ...変更なし... */
-//         float motor = maxMotorTorque * motorInput;
-//         float steering = maxSteeringAngle * steeringInput;
-//         float brakeTorque = isBraking ? maxBrakeTorque : 0f;
-//         foreach (AxleInfo axleInfo in axleInfos)
-//         {
-//             if (axleInfo.steering)
-//             {
-//                 axleInfo.leftWheel.steerAngle = steering;
-//                 axleInfo.rightWheel.steerAngle = steering;
-//             }
-//             if (axleInfo.motor)
-//             {
-//                 axleInfo.leftWheel.motorTorque = isBraking ? 0f : motor;
-//                 axleInfo.rightWheel.motorTorque = isBraking ? 0f : motor;
-//             }
-//             axleInfo.leftWheel.brakeTorque = brakeTorque;
-//             axleInfo.rightWheel.brakeTorque = brakeTorque;
-//         }
-//     }
-//     public void ApplyLocalPositionToVisuals(WheelCollider collider)
-//     {
-//         /* ...変更なし... */
-//         if (collider.transform.childCount == 0) return;
-//         Transform visualWheel = collider.transform.GetChild(0);
-//         collider.GetWorldPose(out Vector3 position, out Quaternion rotation); visualWheel.transform.position = position;
-//         visualWheel.transform.rotation = rotation * Quaternion.Euler(0f, 0f, 90f);
-//     }
-// }
+            if (lastRaycastTargetName != null)
+            {
+                Debug.Log($"Raycast Clear: {lastRaycastTargetName} is no longer in range.");
+                lastRaycastTargetName = null;
+            }
 
-// 	[System.Serializable]
-// 	public class AxleInfo {
-// 		public WheelCollider leftWheel;
-// 		public WheelCollider rightWheel;
-// 		public bool motor; // このホイールはモーターにアタッチされているかどうか
-// 		public bool steering; // このホイールはハンドルの角度を反映しているかどうか
-// 	}
+            // LineRenderer の終点を設定
+            Vector3 endPoint = rayOrigin + transform.forward * maxDistance;
+            if(gameViewRaycastLine != null) gameViewRaycastLine.SetPosition(1, endPoint);
+        }
+    }
+
+    // ========== 物理センサー (トリガー) ==========
+
+    void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("Trigger Enter: " + other.name);
+        if(triggerText) triggerText.text = $"Trigger: DANGER (object inside)";
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        if(triggerText) triggerText.text = $"Trigger: DANGER (object inside)";
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        Debug.Log("Trigger Exit: " + other.name);
+        if(triggerText) triggerText.text = "Trigger: No target.";
+    }
+
+    // ========== 車両制御ロジック ==========
+
+    public void Move(float motorInput, float steeringInput, bool isBraking)
+    {
+        float motor = maxMotorTorque * motorInput;
+        float steering = maxSteeringAngle * steeringInput;
+        float brakeTorque = isBraking ? maxBrakeTorque : 0f;
+
+        foreach (AxleInfo axleInfo in axleInfos)
+        {
+            if (axleInfo.steering)
+            {
+                axleInfo.leftWheel.steerAngle = steering;
+                axleInfo.rightWheel.steerAngle = steering;
+            }
+            if (axleInfo.motor)
+            {
+                axleInfo.leftWheel.motorTorque = isBraking ? 0f : motor;
+                axleInfo.rightWheel.motorTorque = isBraking ? 0f : motor;
+            }
+            axleInfo.leftWheel.brakeTorque = brakeTorque;
+            axleInfo.rightWheel.brakeTorque = brakeTorque;
+        }
+    }
+
+    public void ApplyLocalPositionToVisuals(WheelCollider collider)
+    {
+        if (collider.transform.childCount == 0) return;
+        
+        Transform visualWheel = collider.transform.GetChild(0);
+        collider.GetWorldPose(out Vector3 position, out Quaternion rotation);
+        visualWheel.transform.position = position;
+        visualWheel.transform.rotation = rotation * Quaternion.Euler(0f, 0f, 90f); 
+    }
+}
