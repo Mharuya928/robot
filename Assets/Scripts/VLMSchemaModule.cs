@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class VLMSchemaModule : ScriptableObject
 {
     [Header("Module Info")]
-    public string moduleName; // 表示用タイトル
+    public string moduleName = "Navigation";
 
     [Header("Properties")]
     public List<SchemaPropertyDefinition> properties = new List<SchemaPropertyDefinition>();
@@ -13,18 +13,19 @@ public class VLMSchemaModule : ScriptableObject
     [System.Serializable]
     public class SchemaPropertyDefinition
     {
-        public string name;         // JSONのキー (例: "risk_level")
-        public string description;  // AIへの説明 (例: "The risk level of the scene")
-        public PropertyType type;   // 型
+        public string name;
+        public string description;
+        public PropertyType type;
 
-        [Tooltip("Enumの場合の選択肢 (カンマ区切りで入力)")]
-        public string enumOptions;  // 例: "high,medium,low"
+        [Tooltip("Enumの場合の選択肢")]
+        public string enumOptions;
 
         public enum PropertyType
         {
             String,
             Enum,
-            Boolean
+            Boolean,
+            Array // ▼▼▼ 追加: 配列タイプ ▼▼▼
         }
     }
 }

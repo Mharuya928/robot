@@ -163,7 +163,7 @@ private IEnumerator SendRequestToOllama()
 
     // ========== 🛠️ 動的ロジック ==========
 
-    /// <summary>
+/// <summary>
     /// Configに登録されたモジュールから、JSON Schema文字列を動的に生成する
     /// </summary>
     private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
@@ -180,18 +180,21 @@ private IEnumerator SendRequestToOllama()
 
             foreach (var prop in module.properties)
             {
-                // 必須キーとして追加
                 requiredKeys.Add($"\"{prop.name}\"");
 
                 string typeDef = "";
-                if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum)
+                
+                // ▼▼▼ 修正: Arrayタイプの処理を追加 ▼▼▼
+                if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Array)
                 {
-                    // Enumの場合は選択肢を展開 (カンマ区切り文字列を配列に変換)
+                    // 文字列の配列として定義する
+                    typeDef = $@"{{ ""type"": ""array"", ""items"": {{ ""type"": ""string"" }}, ""description"": ""{prop.description}"" }}";
+                }
+                else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum)
+                {
                     string[] opts = prop.enumOptions.Split(',');
-                    // 各要素をダブルクォートで囲む
                     for(int i=0; i<opts.Length; i++) opts[i] = opts[i].Trim(); 
                     string enumStr = string.Join("\",\"", opts); 
-                    
                     typeDef = $@"{{ ""type"": ""string"", ""enum"": [""{enumStr}""], ""description"": ""{prop.description}"" }}";
                 }
                 else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Boolean)
@@ -200,7 +203,6 @@ private IEnumerator SendRequestToOllama()
                 }
                 else
                 {
-                    // String
                     typeDef = $@"{{ ""type"": ""string"", ""description"": ""{prop.description}"" }}";
                 }
                 
@@ -208,7 +210,6 @@ private IEnumerator SendRequestToOllama()
             }
         }
 
-        // プロパティを結合
         sb.Append(string.Join(",", props));
         sb.Append(@"}, ""required"": [");
         sb.Append(string.Join(",", requiredKeys));
@@ -224,7 +225,6 @@ private IEnumerator SendRequestToOllama()
     {
         StringBuilder sb = new StringBuilder();
 
-        // アクティブなモジュール順に表示を作る
         foreach (var module in config.activeModules)
         {
             if (module == null) continue;
@@ -233,26 +233,55 @@ private IEnumerator SendRequestToOllama()
             
             foreach (var prop in module.properties)
             {
-                // 正規表現で値を探す: "key" : "value" または "key": value
-                // (簡易的なパーサですが、Ollamaの構造化出力なら概ね動作します)
-                string pattern = $"\"{prop.name}\"\\s*:\\s*\"?(.*?)\"?\\s*(,|}})";
-                Match match = Regex.Match(jsonResponse, pattern);
+                // 配列 [...] も 文字列 "..." も両方拾える正規表現
+                string pattern = $"\"{prop.name}\"\\s*:\\s*(\\[.*?\\]|\".*?\")";
+                Match match = Regex.Match(jsonResponse, pattern, RegexOptions.Singleline);
 
                 if (match.Success)
                 {
-                    // 値を取得
                     string val = match.Groups[1].Value.Trim();
-                    // 末尾の引用符などが残っていたら削除
-                    val = val.Trim('"');
 
-                    // 色付け (Enumで危険度などを強調したい場合の例)
+                    // ▼▼▼ 修正: 値の整形処理 (記号を消す) ▼▼▼
+                    
+                    if (val.StartsWith("[")) 
+                    {
+                        // 配列の場合: [ ] " をすべて削除して、カンマ区切りだけにする
+                        // 例: ["cube", "sphere"]  ->  cube, sphere
+                        val = val.Replace("[", "").Replace("]", "").Replace("\"", "");
+                    }
+                    else 
+                    {
+                        // 文字列の場合: 両端の " を削除
+                        val = val.Trim('"');
+                    }
+
+                    // 値が空っぽなら "None" と表示するなどの調整
+                    if (string.IsNullOrWhiteSpace(val)) val = "None";
+
+
+                    // --- 色付けロジック (変更なし) ---
                     string displayVal = val;
-                    if (val.ToLower() == "high" || val.ToLower() == "danger" || val.ToLower() == "true") 
+                    string lowerVal = val.ToLower(); // 小文字で判定
+                    if (lowerVal.Contains("high") || lowerVal.Contains("danger") || lowerVal == "true" || lowerVal.Contains("critical")) 
+                    {
+                        // 危険系 -> 赤
                         displayVal = $"<color=red>{val}</color>";
-                    else if (val.ToLower() == "safe" || val.ToLower() == "false")
+                    }
+                    else if (lowerVal.Contains("safe") || lowerVal == "false" || lowerVal.Contains("clear") || lowerVal == "none")
+                    {
+                        // 安全系 -> 緑
                         displayVal = $"<color=green>{val}</color>";
-                    else
+                    }
+                    else if (lowerVal.Contains("caution") || lowerVal.Contains("warning") || lowerVal.Contains("medium"))
+                    {
+                        // 注意系 -> 黄色
                         displayVal = $"<color=yellow>{val}</color>";
+                    }
+                    else
+                    {
+                        // その他（物体名など） -> 色を変えない（デフォルトの白）
+                        displayVal = val;
+                    }
 
                     sb.AppendLine($"- {prop.name}: {displayVal}");
                 }
@@ -261,7 +290,7 @@ private IEnumerator SendRequestToOllama()
                     sb.AppendLine($"- {prop.name}: <color=grey>(Not found)</color>");
                 }
             }
-            sb.AppendLine(); // モジュール間の空行
+            sb.AppendLine(); 
         }
 
         if (VLMText != null) VLMText.text = sb.ToString();
