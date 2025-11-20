@@ -14,4 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   modelName: qwen2.5vl:7b
   prompt: Analyze this scene.
-  activeModules: []
+  activeModules:
+  - {fileID: 11400000, guid: 04223f1928eacee3db3ab3f5eeadf0c3, type: 2}

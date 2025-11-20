@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Config2
   m_EditorClassIdentifier: 
   modelName: qwen2.5vl:7b
-  prompt: Analyze this scene.
+  prompt: Analyze this picture. List all noteworthy objects you see.
   activeModules:
   - {fileID: 11400000, guid: 32775418db8cb5df8b621ea4eef2d7b1, type: 2}

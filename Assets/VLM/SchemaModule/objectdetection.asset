@@ -16,5 +16,5 @@ MonoBehaviour:
   properties:
   - name: detected_objects
     description: List of noteworthy objects visible in the scene (comma separated).
-    type: 0
+    type: 3
     enumOptions: 
