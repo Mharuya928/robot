@@ -94,8 +94,8 @@ public class CarStatusUI : MonoBehaviour
         {
             if (isBraking)
             {
-                // ブレーキ時は 0 (真ん中) にする
-                motorSlider.value = 0.0f; 
+                // ブレーキ時は -1 (一番下) にする
+                motorSlider.value = -1.0f; 
             }
             else
             {

@@ -767,7 +767,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -320, y: -100}
+  m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 100, y: 180}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &280037397
@@ -1296,7 +1296,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -369, y: -60}
+  m_AnchoredPosition: {x: -50, y: -60}
   m_SizeDelta: {x: 20, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &319390440
@@ -1387,7 +1387,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -200, y: -90}
+  m_AnchoredPosition: {x: 120, y: -90}
   m_SizeDelta: {x: 20, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &351474037
@@ -1838,7 +1838,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 432750146}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1847,7 +1847,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -200, y: -190}
+  m_AnchoredPosition: {x: 120, y: -190}
   m_SizeDelta: {x: 100, y: 25}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &432750148
@@ -2046,7 +2046,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1457672433}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.21685702
+  m_Size: 0.19688319
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2126,7 +2126,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 80}
+  m_AnchoredPosition: {x: -340, y: 80}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &498750940
@@ -2637,7 +2637,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -369, y: -140}
+  m_AnchoredPosition: {x: -50, y: -140}
   m_SizeDelta: {x: 20, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &594415500
@@ -3659,7 +3659,7 @@ Transform:
   m_GameObject: {fileID: 701534820}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3, z: -11}
+  m_LocalPosition: {x: 0, y: 3, z: -11.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3933,19 +3933,24 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Unity\u6A19\u6E96\u306E Outline \u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u306F\u3001\u5358\u7D14\u306B\u30E1\u30C3\u30B7\u30E5\uFF08\u30DD\u30EA\u30B4\u30F3\uFF09\u3092\u30B3\u30D4\u30FC\u3057\u3066\u305A\u3089\u3057\u3066\u3044\u308B\u3060\u3051\u306A\u306E\u3067\u3001\u89D2\u4E38\u3084\u8907\u96D1\u306A\u5F62\u3067\u306F\u7DBA\u9E97\u306B\u8868\u793A\u3055\u308C\u307E\u305B\u3093\uFF08\u89D2\u304C\u5272\u308C\u305F\u308A\u30AE\u30B6\u30AE\u30B6\u306B\u306A\u308A\u307E\u3059\uFF09\u3002\n\n\u89D2\u4E38\u306E\u67A0\u7DDA\u3092\u7DBA\u9E97\u306B\u51FA\u3059\u306B\u306F\u3001Outline
-    \u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u3092\u4F7F\u308F\u305A\u3001\u4EE5\u4E0B\u306E**\u300C2\u679A\u91CD\u306D\u308B\u65B9\u6CD5\u300D**\u304C\u6700\u3082\u7C21\u5358\u3067\u6A19\u6E96\u7684\u306A\u89E3\u6C7A\u7B56\u3067\u3059\u3002\n\n\U0001F3A8
-    \u65B9\u6CD51\uFF1A\u89AA\u5B50\u3067\u753B\u50CF\u3092\u91CD\u306D\u308B\uFF08\u63A8\u5968\uFF09\n\u300C\u67A0\u7DDA\u7528\u306E\u753B\u50CF\uFF08\u89AA\uFF09\u300D\u306E\u4E0A\u306B\u3001\u300C\u4E2D\u8EAB\u306E\u753B\u50CF\uFF08\u5B50\uFF09\u300D\u3092\u5C11\u3057\u5C0F\u3055\u304F\u3057\u3066\u91CD\u306D\u308B\u3053\u3068\u3067\u3001\u306F\u307F\u51FA\u3057\u305F\u90E8\u5206\u3092\u67A0\u7DDA\u306B\u898B\u305B\u308B\u65B9\u6CD5\u3067\u3059\u3002\n\n\u624B\u9806\n\u89AA\u753B\u50CF\uFF08\u67A0\u7DDA\uFF09\u306E\u4F5C\u6210:\n\n\u89D2\u4E38\u306E\u753B\u50CF\uFF08Source
-    Image\uFF09\u3092\u30BB\u30C3\u30C8\u3057\u305F Image \u3092\u4F5C\u308A\u307E\u3059\u3002\n\n\u3053\u308C\u306E\u8272\u3092**\u300C\u67A0\u7DDA\u306E\u8272\u300D**\u306B\u3057\u307E\u3059\u3002\n\n\u540D\u524D\u3092
-    Button_Border \u306A\u3069\u306B\u3057\u307E\u3059\u3002\n\n\u5B50\u753B\u50CF\uFF08\u4E2D\u8EAB\uFF09\u306E\u4F5C\u6210:\n\nButton_Border
-    \u306E\u4E0B\u306B\u3001\u5B50\u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\u3068\u3057\u3066\u3082\u3046\u4E00\u3064
-    Image \u3092\u4F5C\u308A\u307E\u3059\u3002\n\n\u540C\u3058\u89D2\u4E38\u306E\u753B\u50CF\uFF08Source
-    Image\uFF09\u3092\u30BB\u30C3\u30C8\u3057\u307E\u3059\u3002\n\n\u3053\u308C\u306E\u8272\u3092**\u300C\u4E2D\u8EAB\u306E\u8272\uFF08\u307E\u305F\u306F\u80CC\u666F\u8272\uFF09\u300D**\u306B\u3057\u307E\u3059\u3002\n\n\u30B5\u30A4\u30BA\u8ABF\u6574\uFF08\u3053\u3053\u304C\u91CD\u8981\uFF09:\n\n\u5B50\u753B\u50CF\u306E
-    Rect Transform \u3092\u958B\u304D\u307E\u3059\u3002\n\n\u30A2\u30F3\u30AB\u30FC\u30D7\u30EA\u30BB\u30C3\u30C8\u3067
-    Alt + Shift \u3092\u62BC\u3057\u306A\u304C\u3089\u53F3\u4E0B\u306E \u300CStretch\uFF08\u5168\u753B\u9762\uFF09\u300D
-    \u3092\u9078\u3073\u307E\u3059\u3002\n\nLeft, Top, Right, Bottom \u306E\u5024\u3092\u3001\u3059\u3079\u3066
-    \u300C\u67A0\u7DDA\u306E\u592A\u3055\uFF08\u4F8B: 5\uFF09\u300D \u306B\u8A2D\u5B9A\u3057\u307E\u3059\u3002\n\n\u3053\u308C\u3067\u3001\u89AA\u753B\u50CF\u304C\u300C5\u30D4\u30AF\u30BB\u30EB\u5206\u300D\u3060\u3051\u306F\u307F\u51FA\u3057\u3001\u975E\u5E38\u306B\u6ED1\u3089\u304B\u3067\u7DBA\u9E97\u306A\u89D2\u4E38\u306E\u67A0\u7DDA\u306B\u306A\u308A\u307E\u3059\u3002\n\n\U0001F9EA
-    \u65B9\u6CD52\uFF1A\u30D7\u30ED\u30B7\u30FC\u30B8\u30E3\u30EB\u7CFB\u30A2\u30BB\u30C3\u30C8\u3092\u4F7F\u3046\uFF08\u9AD8\u6A5F\u80FD\uFF09\n\u30B5\u30A4\u30BA\u3092\u5909"
+  m_text: "Unity\u306E`Scroll View`\uFF08\u30B9\u30AF\u30ED\u30FC\u30EB\u30D3\u30E5\u30FC\uFF09\u306E\u30C7\u30D5\u30A9\u30EB\u30C8\u8A2D\u5B9A\u3067\u306F\u3001\u4E2D\u8EAB\uFF08Content\uFF09\u304C\u67A0\uFF08Viewport\uFF09\u3088\u308A\u5C0F\u3055\u3044\u3068\u304D\u3001\u30B9\u30AF\u30ED\u30FC\u30EB\u30D0\u30FC\u306F\u81EA\u52D5\u7684\u306B\u96A0\u308C\u308B\u304B\u3001\u64CD\u4F5C\u4E0D\u80FD\u306B\u306A\u308A\u307E\u3059\u3002\n\n\u3053\u308C\u3092\u300C\u4E2D\u8EAB\u304C\u7A7A\u3067\u3082\u5E38\u306B\u8868\u793A\u3057\u3066\u304A\u304F\u300D\u306B\u306F\u3001**`Scroll
+    Rect` \u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u306E\u8A2D\u5B9A**\u3092\u5909\u66F4\u3057\u307E\u3059\u3002\n\n###
+    \U0001F6E0\uFE0F \u8A2D\u5B9A\u624B\u9806\n1.  **Hierarchy**\u30A6\u30A3\u30F3\u30C9\u30A6\u3067\u3001\u4F5C\u6210\u3057\u305F
+    `VLM_ScrollView`\uFF08\u30B9\u30AF\u30ED\u30FC\u30EB\u30D3\u30E5\u30FC\u306E\u89AA\u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\uFF09\u3092\u9078\u629E\u3057\u307E\u3059\u3002\n2. 
+    **Inspector**\u30A6\u30A3\u30F3\u30C9\u30A6\u3067\u3001**`Scroll Rect`** \u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u3092\u898B\u3064\u3051\u307E\u3059\u3002\n3. 
+    **Visibility** \u3068\u3044\u3046\u8A2D\u5B9A\u9805\u76EE\u3092\u63A2\u3057\u307E\u3059\uFF08Vertical
+    Scrollbar\u306E\u8A2D\u5B9A\u6B04\u306E\u8FD1\u304F\u306B\u3042\u308A\u307E\u3059\uFF09\u3002\n4. 
+    \u3053\u308C\u3092 **`Permanent`**\uFF08\u5E38\u306B\u8868\u793A\uFF09\u306B\u5909\u66F4\u3057\u307E\u3059\u3002\n\n---\n\n###
+    3\u3064\u306E\u30E2\u30FC\u30C9\u306E\u9055\u3044\n\n* **`Permanent` (\u63A8\u5968):**\n   
+    \u4E2D\u8EAB\u306E\u91CF\u306B\u95A2\u308F\u3089\u305A\u3001\u30B9\u30AF\u30ED\u30FC\u30EB\u30D0\u30FC\u306E\u80CC\u666F\uFF08\u30EC\u30FC\u30EB\uFF09\u3068\u30CF\u30F3\u30C9\u30EB\uFF08\u3064\u307E\u307F\uFF09\u3092\u5E38\u306B\u8868\u793A\u3057\u307E\u3059\u3002\u4E2D\u8EAB\u304C\u5C11\u306A\u3044\u3068\u304D\u306F\u30CF\u30F3\u30C9\u30EB\u304C\u6700\u5927\u30B5\u30A4\u30BA\uFF08\uFF1D\u30B9\u30AF\u30ED\u30FC\u30EB\u4E0D\u53EF\uFF09\u306E\u72B6\u614B\u3067\u8868\u793A\u3055\u308C\u307E\u3059\u3002UI\u306E\u30EC\u30A4\u30A2\u30A6\u30C8\u304C\u5D29\u308C\u306A\u3044\u305F\u3081\u304A\u3059\u3059\u3081\u3067\u3059\u3002\n\n*
+    **`Auto Hide` (\u30C7\u30D5\u30A9\u30EB\u30C8):**\n    \u4E2D\u8EAB\u304C\u5C11\u306A\u3044\u3068\u304D\u3001\u30B9\u30AF\u30ED\u30FC\u30EB\u30D0\u30FC\u5168\u4F53\u3092\u975E\u8868\u793A\u306B\u3057\u307E\u3059\u3002\n\n*
+    **`Auto Hied And Expand Viewport`:**\n    \u4E2D\u8EAB\u304C\u5C11\u306A\u3044\u3068\u304D\u3001\u30B9\u30AF\u30ED\u30FC\u30EB\u30D0\u30FC\u3092\u96A0\u3057\u3001\u305D\u306E\u5206\u3060\u3051Viewport\uFF08\u8868\u793A\u9818\u57DF\uFF09\u3092\u5E83\u3052\u307E\u3059\u3002\n\n###
+    \U0001F4A1 \u88DC\u8DB3\uFF1A\u30CF\u30F3\u30C9\u30EB\u304C\u898B\u3048\u306A\u3044\u5834\u5408\n\n\u3082\u3057
+    `Permanent` \u306B\u3057\u3066\u3082\u3001\u4E2D\u8EAB\u304C\u7A7A\u306E\u3068\u304D\u306B\u300C\u3064\u307E\u307F\uFF08Handle\uFF09\u300D\u304C\u898B\u3048\u306A\u304F\u306A\u308B\u5834\u5408\u306F\u3001\u4EE5\u4E0B\u306E\u8A2D\u5B9A\u3082\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002\n\n1. 
+    `Scrollbar Vertical` \u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\u3092\u9078\u629E\u3057\u307E\u3059\u3002\n2. 
+    `Scrollbar` \u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u306E **`Size`** \u304C
+    `1`\uFF08\u6700\u5927\uFF09\u306B\u306A\u3063\u3066\u3044\u308B\u3068\u304D\u3001\u30CF\u30F3\u30C9\u30EB\u306E\u753B\u50CF\u304C\u900F\u660E\u306B\u306A\u3063\u3066\u3044\u306A\u3044\u304B\u78BA\u8A8D\u3057\u307E\u3059\u3002\n3. 
+    \u901A\u5E38\u306F\u3001\u30B9\u30AF\u30ED\u30FC\u30EB\u4E0D\u8981\u306A\u3068\u304D\u306F\u30CF\u30F3\u30C9\u30EB\u304C\u300C\u30EC\u30FC\u30EB\u3044\u3063\u3071\u3044\u306E\u5927\u304D\u3055\u300D\u3067\u8868\u793A\u3055\u308C\u308B\u306E\u304C\u6B63\u5E38\u306A\u6319\u52D5\u3067\u3059\u3002"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 879cd94f325491641a804d50480a42f7, type: 2}
   m_sharedMaterial: {fileID: -6543970490032269164, guid: 879cd94f325491641a804d50480a42f7, type: 2}
@@ -4784,7 +4789,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -320, y: 130}
+  m_AnchoredPosition: {x: -340, y: 130}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1035429615
@@ -5535,7 +5540,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BindingMode: 1
-  m_FollowOffset: {x: 0, y: 1.5, z: -6}
+  m_FollowOffset: {x: 0, y: 1.5, z: -6.5}
   m_XDamping: 0
   m_YDamping: 0
   m_ZDamping: 0
@@ -11251,7 +11256,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -320, y: 200}
+  m_AnchoredPosition: {x: -340, y: 200}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1668959339
@@ -11597,7 +11602,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -271, y: -60}
+  m_AnchoredPosition: {x: 50, y: -60}
   m_SizeDelta: {x: 20, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1804081611
@@ -12826,7 +12831,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -271, y: -140}
+  m_AnchoredPosition: {x: 50, y: -140}
   m_SizeDelta: {x: 20, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2115829401
