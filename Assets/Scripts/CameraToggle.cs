@@ -9,7 +9,7 @@ public class CameraToggle : MonoBehaviour
 
     // 3D世界を非表示にする（UIのみにする）ための設定
     private CameraClearFlags hiddenClearFlags = CameraClearFlags.SolidColor;
-    private Color hiddenBackgroundColor = Color.black; // 背景を黒にする
+    private Color hiddenBackgroundColor = new Color(0.1f, 0.15f, 0.3f); // 背景を深い青色に
     private int hiddenCullingMask = 0; // 0 = "Nothing" (何も描画しない)
 
     // 3D世界を再表示するための、元の設定
