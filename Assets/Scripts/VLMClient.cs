@@ -65,6 +65,27 @@ private IEnumerator SendRequestToOllama()
 
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
+        // ▼▼▼ 追加: 使用するモジュール一覧をログに出力 ▼▼▼
+        StringBuilder moduleLog = new StringBuilder();
+        moduleLog.AppendLine("【Active Modules (使用中のモジュール)】");
+
+        if (config.activeModules != null && config.activeModules.Count > 0)
+        {
+            foreach (var module in config.activeModules)
+            {
+                if (module != null)
+                {
+                    moduleLog.AppendLine($"- {module.moduleName}");
+                }
+            }
+        }
+        else
+        {
+            moduleLog.AppendLine("- None (Free Form Mode / 自由会話モード)");
+        }
+        Debug.Log(moduleLog.ToString());
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         // --- 1. 画像撮影 (変更なし) ---
         string base64Image = null;
         if (carController != null) carController.SetRaycastLineVisibility(false);
@@ -120,7 +141,10 @@ private IEnumerator SendRequestToOllama()
             }}";
         }
 
-        Debug.Log($"Sending Request (FreeForm: {isFreeForm})");
+        // ▼▼▼ 修正: ここで送信するJSON全文をログに出力する ▼▼▼
+        // base64Imageは非常に長くてログが見づらくなるため、"<IMAGE_DATA>"などに置き換えて表示すると便利です
+        // string logBody = jsonBody.Replace(base64Image, "<BASE64_IMAGE_DATA>");
+        // Debug.Log($"【Sending JSON Request】\n{logBody}");
 
         // --- 3. 通信処理 ---
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
