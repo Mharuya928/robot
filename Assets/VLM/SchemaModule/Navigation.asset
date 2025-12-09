@@ -15,10 +15,10 @@ MonoBehaviour:
   moduleName: Navigation
   properties:
   - name: suggested_action
-    description: The best action to take next.
+    description: "\u73FE\u5728\u306E\u72B6\u6CC1\u306B\u304A\u3044\u3066\u3001\u6B21\u306B\u53D6\u308B\u3079\u304D\u6700\u9069\u306A\u884C\u52D5"
     type: 1
-    enumOptions: move_forward,stop,turn_left,turn_right,reverse
+    enumOptions: "\u524D\u9032,\u505C\u6B62,\u5DE6\u6298,\u53F3\u6298,\u5F8C\u9000"
   - name: reason
-    description: The reason for this action.
+    description: "\u305D\u306E\u884C\u52D5\u3092\u9078\u629E\u3057\u305F\u7406\u7531\uFF08\u65E5\u672C\u8A9E\u3067\u7C21\u6F54\u306B\uFF09"
     type: 0
     enumOptions: 

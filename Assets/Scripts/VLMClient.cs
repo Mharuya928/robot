@@ -17,12 +17,25 @@ public class VLMClient : MonoBehaviour
     [Header("Dependencies")]
     [Tooltip("撮影時に線を消すために制御するCarController")]
     public CarController carController;
-    public Camera carCamera;
+    // ▼▼▼ 修正: 1つのカメラではなくリストに変更 ▼▼▼
+    [Tooltip("使用するカメラを複数登録できます")]
+    public List<Camera> captureCameras; 
+
+    [Header("Camera Selection")]
+    [Tooltip("ここに入力した番号（Element番号）のカメラが使われます")]
+    public int selectedCameraIndex = 0;
     [SerializeField] private TMP_Text VLMText;
 
     [Header("Ollama Connection")]
     public string ollamaUrl = "http://localhost:11434/api/chat";
 
+    [Header("Capture Settings")]
+    [Tooltip("VLMに送る画像の幅。小さいほど高速です。(推奨: 640 or 512)")]
+    public int captureWidth = 512;
+    
+    [Tooltip("VLMに送る画像の高さ。(推奨: 360 or 512)")]
+    public int captureHeight = 512;
+    
     [Header("Input")]
     [Tooltip("VLM（写真撮影）を起動するキー")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
@@ -36,11 +49,10 @@ public class VLMClient : MonoBehaviour
     {
         // 必須設定のチェック
         if (config == null) Debug.LogError("VLM Config が設定されていません！ Projectウィンドウで作成してセットしてください。");
-        if (carCamera == null) Debug.LogError("Target Camera が設定されていません");
 
         if (VLMText != null)
         {
-            string modelName = config != null ? config.modelName : "Unknown";
+            string modelName = config != null ? config.ModelName : "Unknown";
             VLMText.text = $"VLM: Ready ({modelName})";
         }
 
@@ -90,15 +102,53 @@ private IEnumerator SendRequestToOllama()
         string base64Image = null;
         if (carController != null) carController.SetRaycastLineVisibility(false);
         yield return null; 
-        Texture2D photo = CaptureCameraView(carCamera);
+
+        // ▼▼▼ 修正: Inspectorで指定された番号のカメラを取得 ▼▼▼
+        Camera targetCam = null;
+
+        if (captureCameras != null && captureCameras.Count > 0)
+        {
+            // インデックスが範囲外にならないように安全策をとる (0 〜 リストの最後)
+            int safeIndex = Mathf.Clamp(selectedCameraIndex, 0, captureCameras.Count - 1);
+            targetCam = captureCameras[safeIndex];
+            
+            // 実際に使った番号をInspectorにも反映させておく（範囲外だった場合などのため）
+            selectedCameraIndex = safeIndex; 
+        }
+
+        if (targetCam == null)
+        {
+            Debug.LogError("カメラが設定されていません！InspectorでCapture Camerasリストを確認してください。");
+            isProcessing = false;
+            yield break;
+        }
+
+        // ターゲットカメラを使って撮影
+        Texture2D photo = CaptureCameraView(targetCam);
+        // ▲▲▲ 修正ここまで ▲▲▲
+        
         if (carController != null) carController.SetRaycastLineVisibility(true);
         byte[] bytes = photo.EncodeToJPG();
+
+        // ▼▼▼ 追加: ここで保存関数を呼び出す！ ▼▼▼
+        SaveImageToFile(bytes);
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         base64Image = System.Convert.ToBase64String(bytes);
         Destroy(photo);
         // ---------------------------
 
         // エスケープ処理
         string safePrompt = config.prompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+
+        // ▼▼▼ 追加: オプションのJSON文字列を作成 ▼▼▼
+        OllamaOptions options = new OllamaOptions
+        {
+            num_predict = config.maxTokens,   // Configの値をセット
+            temperature = config.temperature  // Configの値をセット
+        };
+        string optionsJson = JsonUtility.ToJson(options);
+        // ▲▲▲ 追加ここまで ▲▲▲
 
         // ▼▼▼ 修正: モジュールがあるかないかで JSON の作り方を変える ▼▼▼
         
@@ -108,10 +158,12 @@ private IEnumerator SendRequestToOllama()
         if (isFreeForm)
         {
             // パターンA: モジュールなし (Free Form) -> "format" を含めない
+            // ▼▼▼ 修正: options を追加 ▼▼▼
             jsonBody = $@"
             {{
-                ""model"": ""{config.modelName}"",
+                ""model"": ""{config.ModelName}"",
                 ""stream"": false,
+                ""options"": {optionsJson},
                 ""messages"": [
                     {{
                         ""role"": ""user"",
@@ -126,10 +178,12 @@ private IEnumerator SendRequestToOllama()
             // パターンB: モジュールあり (Schema Mode) -> "format" を含める
             string schemaJson = BuildDynamicSchemaJson(config.activeModules);
             
+            // ▼▼▼ 修正: options を追加 ▼▼▼
             jsonBody = $@"
             {{
-                ""model"": ""{config.modelName}"",
+                ""model"": ""{config.ModelName}"",
                 ""stream"": false,
+                ""options"": {optionsJson},
                 ""messages"": [
                     {{
                         ""role"": ""user"",
@@ -348,16 +402,31 @@ private IEnumerator SendRequestToOllama()
 
     private Texture2D CaptureCameraView(Camera camera)
     {
-        RenderTexture renderTexture = new RenderTexture(camera.pixelWidth, camera.pixelHeight, 24);
+        // ▼▼▼ 修正: 指定した固定解像度を使用する ▼▼▼
+        int width = captureWidth;
+        int height = captureHeight;
+
+        // RenderTextureを作成 (指定サイズで)
+        RenderTexture renderTexture = new RenderTexture(width, height, 24);
         camera.targetTexture = renderTexture;
+        
+        // レンダリング
         camera.Render();
+        
         RenderTexture.active = renderTexture;
-        Texture2D screenshot = new Texture2D(camera.pixelWidth, camera.pixelHeight, TextureFormat.RGB24, false);
-        screenshot.ReadPixels(new Rect(0, 0, camera.pixelWidth, camera.pixelHeight), 0, 0);
+        
+        // Texture2Dも同じサイズで作る
+        Texture2D screenshot = new Texture2D(width, height, TextureFormat.RGB24, false);
+        
+        // 読み込み範囲も (0, 0, width, height) にする
+        screenshot.ReadPixels(new Rect(0, 0, width, height), 0, 0);
         screenshot.Apply();
+        
+        // 後始末
         camera.targetTexture = null;
         RenderTexture.active = null;
         Destroy(renderTexture);
+        
         return screenshot;
     }
 
@@ -371,5 +440,13 @@ private IEnumerator SendRequestToOllama()
     public class ResponseMessage
     {
         public string content;
+    }
+
+    // ▼▼▼ 追加: オプション送信用クラス ▼▼▼
+    [System.Serializable]
+    public class OllamaOptions
+    {
+        public int num_predict; // 最大トークン数
+        public float temperature; // 創造性
     }
 }
