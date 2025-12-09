@@ -40,6 +40,10 @@ public class VLMClient : MonoBehaviour
     [Tooltip("VLM（写真撮影）を起動するキー")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
 
+    [Header("Multi-View Settings")]
+    [Tooltip("オンにすると、Capture Camerasの Element 0（上半分）と Element 1（下半分）を縦に結合して送ります")]
+    public bool useMultiView = false;
+
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
 
@@ -98,41 +102,58 @@ private IEnumerator SendRequestToOllama()
         Debug.Log(moduleLog.ToString());
         // ▲▲▲ 追加ここまで ▲▲▲
 
-        // --- 1. 画像撮影 (変更なし) ---
+// --- 1. 画像撮影 ---
         string base64Image = null;
         if (carController != null) carController.SetRaycastLineVisibility(false);
         yield return null; 
 
-        // ▼▼▼ 修正: Inspectorで指定された番号のカメラを取得 ▼▼▼
-        Camera targetCam = null;
+        Texture2D photo = null;
 
-        if (captureCameras != null && captureCameras.Count > 0)
+        // ▼▼▼ 修正: マルチビューかシングルか分岐する ▼▼▼
+        if (useMultiView && captureCameras != null && captureCameras.Count >= 2)
         {
-            // インデックスが範囲外にならないように安全策をとる (0 〜 リストの最後)
-            int safeIndex = Mathf.Clamp(selectedCameraIndex, 0, captureCameras.Count - 1);
-            targetCam = captureCameras[safeIndex];
-            
-            // 実際に使った番号をInspectorにも反映させておく（範囲外だった場合などのため）
-            selectedCameraIndex = safeIndex; 
+            // A. マルチビューモード (結合撮影)
+            photo = CaptureCombinedView();
         }
-
-        if (targetCam == null)
+        else
         {
-            Debug.LogError("カメラが設定されていません！InspectorでCapture Camerasリストを確認してください。");
-            isProcessing = false;
-            yield break;
-        }
+            // B. シングルカメラモード (指定した1つだけ撮影)
+            // 既存のロジック: Inspectorで指定された番号のカメラを取得
+            Camera targetCam = null;
 
-        // ターゲットカメラを使って撮影
-        Texture2D photo = CaptureCameraView(targetCam);
+            if (captureCameras != null && captureCameras.Count > 0)
+            {
+                // インデックスが範囲外にならないように安全策をとる
+                int safeIndex = Mathf.Clamp(selectedCameraIndex, 0, captureCameras.Count - 1);
+                targetCam = captureCameras[safeIndex];
+                selectedCameraIndex = safeIndex; 
+            }
+
+            if (targetCam == null)
+            {
+                Debug.LogError("カメラが設定されていません！Inspectorを確認してください。");
+                isProcessing = false;
+                yield break;
+            }
+
+            // 単体撮影
+            photo = CaptureCameraView(targetCam);
+        }
         // ▲▲▲ 修正ここまで ▲▲▲
-        
+
+        if (photo == null)
+        {
+             Debug.LogError("撮影に失敗しました (Photo is null)");
+             isProcessing = false;
+             yield break;
+        }
+
         if (carController != null) carController.SetRaycastLineVisibility(true);
+        
         byte[] bytes = photo.EncodeToJPG();
 
-        // ▼▼▼ 追加: ここで保存関数を呼び出す！ ▼▼▼
+        // 画像保存
         SaveImageToFile(bytes);
-        // ▲▲▲ 追加ここまで ▲▲▲
 
         base64Image = System.Convert.ToBase64String(bytes);
         Destroy(photo);
@@ -145,7 +166,8 @@ private IEnumerator SendRequestToOllama()
         OllamaOptions options = new OllamaOptions
         {
             num_predict = config.maxTokens,   // Configの値をセット
-            temperature = config.temperature  // Configの値をセット
+            temperature = config.temperature,  // Configの値をセット
+            num_ctx = config.contextSize      // これを送らないと画像で溢れます
         };
         string optionsJson = JsonUtility.ToJson(options);
         // ▲▲▲ 追加ここまで ▲▲▲
@@ -219,6 +241,7 @@ private IEnumerator SendRequestToOllama()
             else
             {
                 string rawJson = request.downloadHandler.text;
+                Debug.Log("RAW JSON: " + rawJson); // ★この行を追加！
                 string contentJson = ExtractContent(rawJson);
                 Debug.Log("AI Response: " + contentJson);
 
@@ -430,6 +453,65 @@ private IEnumerator SendRequestToOllama()
         return screenshot;
     }
 
+    // 2枚の画像を縦に結合する（上がElement0、下がElement1）
+    private Texture2D CaptureCombinedView()
+    {
+        if (captureCameras == null || captureCameras.Count < 2) 
+        {
+            Debug.LogError("カメラが足りません");
+            return null;
+        }
+
+        int w = captureWidth;
+        int h = captureHeight;
+        int totalW = w;
+        int totalH = h * 2;
+
+        Texture2D combinedTex = new Texture2D(totalW, totalH, TextureFormat.RGB24, false);
+
+        // 1. 上半分 (Front)
+        Camera frontCam = captureCameras[0];
+        if (frontCam != null)
+        {
+            Texture2D frontTex = CaptureCameraView(frontCam);
+            combinedTex.SetPixels(0, h, w, h, frontTex.GetPixels());
+            Destroy(frontTex);
+        }
+
+        // 2. 下半分 (Top)
+        Camera topCam = captureCameras[1];
+        if (topCam != null)
+        {
+            Texture2D topTex = CaptureCameraView(topCam);
+            combinedTex.SetPixels(0, 0, w, h, topTex.GetPixels());
+            Destroy(topTex);
+        }
+
+        // ▼▼▼ 追加: 中央に区切り線を引く ▼▼▼
+        int borderThickness = 6; // 線の太さ (px)
+        Color borderColor = Color.green; // 線の色 (緑が見やすい)
+
+        // 線の色データを作る (配列を塗りつぶす)
+        Color[] borderColors = new Color[w * borderThickness];
+        for (int i = 0; i < borderColors.Length; i++)
+        {
+            borderColors[i] = borderColor;
+        }
+
+        // 境目（高さ h の地点）を中心に線を上書きする
+        // Y位置: 真ん中(h) から 太さの半分下げた位置
+        int borderY = h - (borderThickness / 2);
+        
+        // はみ出し防止のチェック
+        if (borderY < 0) borderY = 0;
+        
+        combinedTex.SetPixels(0, borderY, w, borderThickness, borderColors);
+        // ▲▲▲ 追加ここまで ▲▲▲
+
+        combinedTex.Apply();
+        return combinedTex;
+    }
+
     // Unity JsonUtility用のラッパークラス (外側のレスポンス用)
     [System.Serializable]
     public class OllamaResponse
@@ -448,5 +530,6 @@ private IEnumerator SendRequestToOllama()
     {
         public int num_predict; // 最大トークン数
         public float temperature; // 創造性
+        public int num_ctx;     // コンテキスト長 (画像のメモリ確保に必須)
     }
 }
