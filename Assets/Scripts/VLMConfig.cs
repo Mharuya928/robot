@@ -9,7 +9,9 @@ public class VLMConfig : ScriptableObject
     {
         Qwen2_5_VL_7B,      // qwen2.5vl:7b
         Qwen2_5_VL_3B,      // qwen2.5vl:3b
-        Qwen3_VL_8B_Instruct, //qwen3-vl:8b-instruct
+        Qwen3_VL_8B_Instruct, // qwen3-vl:8b-instruct
+        Qwen3_VL_30B_A3B_Instruct, // qwen3-vl:30b-a3b-instruct
+        
         Qwen3_VL_8B,        // qwen3-vl:8b
         Qwen3_VL_4B         // qwen3-vl:4b
     }
@@ -30,6 +32,7 @@ public class VLMConfig : ScriptableObject
                 case ModelType.Qwen3_VL_4B:   return "qwen3-vl:4b";
                 case ModelType.Qwen3_VL_8B:   return "qwen3-vl:8b";
                 case ModelType.Qwen3_VL_8B_Instruct: return "qwen3-vl:8b-instruct";
+                case ModelType.Qwen3_VL_30B_A3B_Instruct: return "qwen3-vl:30b-a3b-instruct";
                 case ModelType.Qwen2_5_VL_7B: return "qwen2.5vl:7b";
                 case ModelType.Qwen2_5_VL_3B: return "qwen2.5vl:3b";
                 default:                      return "qwen3-vl:8b";

@@ -5190,15 +5190,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da1e985b410a080839de793bd81a2085, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  axleInfos:
-  - leftWheel: {fileID: 678331680}
-    rightWheel: {fileID: 303141928}
-    motor: 1
-    steering: 1
-  - leftWheel: {fileID: 678331680}
-    rightWheel: {fileID: 303141928}
-    motor: 0
-    steering: 0
+  axleInfos: []
   maxMotorTorque: 400
   maxBrakeTorque: 600
   maxSteeringAngle: 30
