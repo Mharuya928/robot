@@ -4,25 +4,58 @@ using System.Collections.Generic;
 [CreateAssetMenu(fileName = "NewVLMConfig", menuName = "VLM/Config")]
 public class VLMConfig : ScriptableObject
 {
-    // ▼▼▼ 1. Customを削除したリスト ▼▼▼
+    // ▼▼▼ 1. カメラモードの定義 ▼▼▼
+    public enum ViewMode
+    {
+        FPS,        // 一人称 (Front Camera)
+        TPS,        // 三人称 (Back/Top Camera)
+        MultiView   // 結合 (Front + Top)
+    }
+
     public enum ModelType
     {
-        Qwen2_5_VL_7B,      // qwen2.5vl:7b
-        Qwen2_5_VL_3B,      // qwen2.5vl:3b
-        Qwen3_VL_8B_Instruct, // qwen3-vl:8b-instruct
-        Qwen3_VL_30B_A3B_Instruct, // qwen3-vl:30b-a3b-instruct
-        
-        Qwen3_VL_8B,        // qwen3-vl:8b
-        Qwen3_VL_4B         // qwen3-vl:4b
+        Qwen2_5_VL_7B,
+        Qwen2_5_VL_3B,
+        Qwen3_VL_8B_Instruct,
+        Qwen3_VL_30B_A3B_Instruct,
+        Qwen3_VL_8B,
+        Qwen3_VL_4B
     }
 
     [Header("Model Selection")]
-    [Tooltip("使用するモデルを選択してください")]
     public ModelType selectedModel = ModelType.Qwen2_5_VL_7B;
 
-    // customModelName 変数は削除しました
+    // ▼▼▼ 2. ビューモード選択 ▼▼▼
+    [Header("Camera & View Settings")]
+    [Tooltip("カメラの視点モードを選択してください")]
+    public ViewMode viewMode = ViewMode.FPS;
 
-    // ▼▼▼ 2. 選択されたモデル名を返すプロパティ ▼▼▼
+    // ▼▼▼ 3. モードごとのプロンプト設定 ▼▼▼
+    [Header("Prompts per Mode")]
+    [TextArea(3, 10)] [Tooltip("FPSモード用プロンプト")]
+    public string promptFPS = "Describe this image.\n...";
+    
+    [TextArea(3, 10)] [Tooltip("TPSモード用プロンプト")]
+    public string promptTPS = "Describe this image.\n...";
+
+    [TextArea(3, 10)] [Tooltip("Multi-Viewモード用プロンプト")]
+    public string promptMulti = "Describe this image.\n...";
+
+    // 以前の単一プロンプトは、現在選択中のモードに応じて返すように変更
+    public string CurrentPrompt
+    {
+        get
+        {
+            switch (viewMode)
+            {
+                case ViewMode.FPS: return promptFPS;
+                case ViewMode.TPS: return promptTPS;
+                case ViewMode.MultiView: return promptMulti;
+                default: return promptFPS;
+            }
+        }
+    }
+
     public string ModelName
     {
         get
@@ -40,19 +73,9 @@ public class VLMConfig : ScriptableObject
         }
     }
 
-    // --- 以下、既存の設定項目 ---
-
-    [TextArea(3, 10)] 
-    public string prompt = "Analyze this scene.";
-
     [Header("Generation Settings")]
-    [Tooltip("コンテキスト長（記憶容量）。画像を送るなら 4096 以上推奨。")]
     public int contextSize = 4096;
-
-    [Tooltip("最大トークン数（出力の上限）。")]
     public int maxTokens = 300;
-
-    [Tooltip("創造性 (0.0 = 論理的・固い, 1.0 = 創造的・ランダム)")]
     [Range(0.0f, 1.0f)] 
     public float temperature = 0.0f; 
 

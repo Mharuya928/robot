@@ -17,13 +17,23 @@ public class VLMClient : MonoBehaviour
     [Header("Dependencies")]
     [Tooltip("撮影時に線を消すために制御するCarController")]
     public CarController carController;
-    // ▼▼▼ 修正: 1つのカメラではなくリストに変更 ▼▼▼
-    [Tooltip("使用するカメラを複数登録できます")]
-    public List<Camera> captureCameras; 
 
-    [Header("Camera Selection")]
-    [Tooltip("ここに入力した番号（Element番号）のカメラが使われます")]
-    public int selectedCameraIndex = 0;
+    // ▼▼▼ 修正: カメラを役割ごとに明確に指定 ▼▼▼
+    [Header("Camera Setup")]
+    [Tooltip("一人称視点 (FPS) および マルチビューの上半分で使用")]
+    public Camera frontCamera;
+
+    [Tooltip("三人称視点 (TPS) で使用")]
+    public Camera tpsCamera;
+
+    [Tooltip("マルチビューの下半分 (俯瞰) で使用")]
+    public Camera topCamera;
+    // ▲▲▲ 修正ここまで ▲▲▲
+
+    // [Header("Camera Selection")]
+    // [Tooltip("ここに入力した番号（Element番号）のカメラが使われます")]
+    // public int selectedCameraIndex = 0;
+
     [SerializeField] private TMP_Text VLMText;
 
     [Header("Ollama Connection")]
@@ -40,9 +50,9 @@ public class VLMClient : MonoBehaviour
     [Tooltip("VLM（写真撮影）を起動するキー")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
 
-    [Header("Multi-View Settings")]
-    [Tooltip("オンにすると、Capture Camerasの Element 0（上半分）と Element 1（下半分）を縦に結合して送ります")]
-    public bool useMultiView = false;
+    // [Header("Multi-View Settings")]
+    // [Tooltip("オンにすると、Capture Camerasの Element 0（上半分）と Element 1（下半分）を縦に結合して送ります")]
+    // public bool useMultiView = false;
 
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
@@ -102,45 +112,44 @@ private IEnumerator SendRequestToOllama()
         Debug.Log(moduleLog.ToString());
         // ▲▲▲ 追加ここまで ▲▲▲
 
-// --- 1. 画像撮影 ---
+        // --- 1. 画像撮影 ---
         string base64Image = null;
         if (carController != null) carController.SetRaycastLineVisibility(false);
         yield return null; 
 
         Texture2D photo = null;
 
-        // ▼▼▼ 修正: マルチビューかシングルか分岐する ▼▼▼
-        if (useMultiView && captureCameras != null && captureCameras.Count >= 2)
+        // ▼▼▼ 修正: ConfigのViewModeに従ってカメラを選ぶ ▼▼▼
+        switch (config.viewMode)
         {
-            // A. マルチビューモード (結合撮影)
-            photo = CaptureCombinedView();
-        }
-        else
-        {
-            // B. シングルカメラモード (指定した1つだけ撮影)
-            // 既存のロジック: Inspectorで指定された番号のカメラを取得
-            Camera targetCam = null;
+            case VLMConfig.ViewMode.FPS:
+                // FPSモード: FrontCameraを使用
+                if (frontCamera != null)
+                {
+                    photo = CaptureCameraView(frontCamera);
+                }
+                else Debug.LogError("FPSモードですが、Front Cameraが設定されていません。");
+                break;
 
-            if (captureCameras != null && captureCameras.Count > 0)
-            {
-                // インデックスが範囲外にならないように安全策をとる
-                int safeIndex = Mathf.Clamp(selectedCameraIndex, 0, captureCameras.Count - 1);
-                targetCam = captureCameras[safeIndex];
-                selectedCameraIndex = safeIndex; 
-            }
+            case VLMConfig.ViewMode.TPS:
+                // TPSモード: TPSCameraを使用
+                if (tpsCamera != null)
+                {
+                    photo = CaptureCameraView(tpsCamera);
+                }
+                else Debug.LogError("TPSモードですが、TPS Cameraが設定されていません。");
+                break;
 
-            if (targetCam == null)
-            {
-                Debug.LogError("カメラが設定されていません！Inspectorを確認してください。");
-                isProcessing = false;
-                yield break;
-            }
-
-            // 単体撮影
-            photo = CaptureCameraView(targetCam);
+            case VLMConfig.ViewMode.MultiView:
+                // MultiViewモード: Front + Top を結合
+                if (frontCamera != null && topCamera != null)
+                {
+                    photo = CaptureCombinedView(frontCamera, topCamera);
+                }
+                else Debug.LogError("MultiViewモードですが、Front Camera または Top Camera が設定されていません。");
+                break;
         }
         // ▲▲▲ 修正ここまで ▲▲▲
-
         if (photo == null)
         {
              Debug.LogError("撮影に失敗しました (Photo is null)");
@@ -159,8 +168,9 @@ private IEnumerator SendRequestToOllama()
         Destroy(photo);
         // ---------------------------
 
-        // エスケープ処理
-        string safePrompt = config.prompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+        // ▼▼▼ プロンプト取得 (Config側でモードに応じて切り替わる) ▼▼▼
+        string currentPromptText = config.CurrentPrompt;
+        string safePrompt = currentPromptText.Replace("\"", "\\\"").Replace("\n", "\\n");
 
         // ▼▼▼ 追加: オプションのJSON文字列を作成 ▼▼▼
         OllamaOptions options = new OllamaOptions
@@ -217,10 +227,27 @@ private IEnumerator SendRequestToOllama()
             }}";
         }
 
-        // ▼▼▼ 修正: ここで送信するJSON全文をログに出力する ▼▼▼
-        // base64Imageは非常に長くてログが見づらくなるため、"<IMAGE_DATA>"などに置き換えて表示すると便利です
-        // string logBody = jsonBody.Replace(base64Image, "<BASE64_IMAGE_DATA>");
-        // Debug.Log($"【Sending JSON Request】\n{logBody}");
+        // ▼▼▼ 追加: 送信JSONのデバッグ表示 (画像データは省略して表示) ▼▼▼
+        if (!string.IsNullOrEmpty(jsonBody))
+        {
+            // ログ用にコピーを作成
+            string debugJson = jsonBody;
+
+            // 長すぎるBase64画像データを "<IMAGE_DATA>" に置換して見やすくする
+            if (!string.IsNullOrEmpty(base64Image))
+            {
+                debugJson = debugJson.Replace(base64Image, "<IMAGE_DATA_OMITTED>");
+            }
+
+            // ▼▼▼ 修正: カメラモードもログに含める ▼▼▼
+            Debug.Log($"【Current Camera Mode】: {config.viewMode}");
+            Debug.Log($"【Request Debug】Sending JSON:{debugJson}");
+            // ▲▲▲ 修正ここまで ▲▲▲
+
+            // 置換処理（Replace）を行わず、そのまま表示します
+            // Debug.Log($"【Request Debug】FULL JSON (Warning: Huge Data){jsonBody}");
+        }
+        // ▲▲▲ 追加ここまで ▲▲▲
 
         // --- 3. 通信処理 ---
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
@@ -453,15 +480,10 @@ private IEnumerator SendRequestToOllama()
         return screenshot;
     }
 
-    // 2枚の画像を縦に結合する（上がElement0、下がElement1）
-    private Texture2D CaptureCombinedView()
+    // ▼▼▼ 修正: 引数でカメラを受け取るように変更 ▼▼▼
+    // 上半分=cam1(Front), 下半分=cam2(Top)
+    private Texture2D CaptureCombinedView(Camera cam1, Camera cam2)
     {
-        if (captureCameras == null || captureCameras.Count < 2) 
-        {
-            Debug.LogError("カメラが足りません");
-            return null;
-        }
-
         int w = captureWidth;
         int h = captureHeight;
         int totalW = w;
@@ -469,44 +491,30 @@ private IEnumerator SendRequestToOllama()
 
         Texture2D combinedTex = new Texture2D(totalW, totalH, TextureFormat.RGB24, false);
 
-        // 1. 上半分 (Front)
-        Camera frontCam = captureCameras[0];
-        if (frontCam != null)
+        // 1. 上半分 (Front Camera)
+        if (cam1 != null)
         {
-            Texture2D frontTex = CaptureCameraView(frontCam);
-            combinedTex.SetPixels(0, h, w, h, frontTex.GetPixels());
-            Destroy(frontTex);
+            Texture2D tex1 = CaptureCameraView(cam1);
+            combinedTex.SetPixels(0, h, w, h, tex1.GetPixels());
+            Destroy(tex1);
         }
 
-        // 2. 下半分 (Top)
-        Camera topCam = captureCameras[1];
-        if (topCam != null)
+        // 2. 下半分 (Top Camera)
+        if (cam2 != null)
         {
-            Texture2D topTex = CaptureCameraView(topCam);
-            combinedTex.SetPixels(0, 0, w, h, topTex.GetPixels());
-            Destroy(topTex);
+            Texture2D tex2 = CaptureCameraView(cam2);
+            combinedTex.SetPixels(0, 0, w, h, tex2.GetPixels());
+            Destroy(tex2);
         }
 
-        // ▼▼▼ 追加: 中央に区切り線を引く ▼▼▼
-        int borderThickness = 6; // 線の太さ (px)
-        Color borderColor = Color.green; // 線の色 (緑が見やすい)
-
-        // 線の色データを作る (配列を塗りつぶす)
+        // 区切り線
+        int borderThickness = 6;
+        Color borderColor = Color.green;
         Color[] borderColors = new Color[w * borderThickness];
-        for (int i = 0; i < borderColors.Length; i++)
-        {
-            borderColors[i] = borderColor;
-        }
-
-        // 境目（高さ h の地点）を中心に線を上書きする
-        // Y位置: 真ん中(h) から 太さの半分下げた位置
+        for (int i = 0; i < borderColors.Length; i++) borderColors[i] = borderColor;
         int borderY = h - (borderThickness / 2);
-        
-        // はみ出し防止のチェック
         if (borderY < 0) borderY = 0;
-        
         combinedTex.SetPixels(0, borderY, w, borderThickness, borderColors);
-        // ▲▲▲ 追加ここまで ▲▲▲
 
         combinedTex.Apply();
         return combinedTex;
