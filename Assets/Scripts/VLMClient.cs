@@ -5,151 +5,200 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using System.Text.RegularExpressions; // 正規表現を使用
+using System.Text.RegularExpressions;
 using System.IO;
 
 public class VLMClient : MonoBehaviour
 {
+    // =================================================================
+    // 1. 設定・依存関係
+    // =================================================================
     [Header("Config")]
-    [Tooltip("作成した設定ファイル(VLMConfig)をセットしてください")]
+    [Tooltip("Projectウィンドウで作成した設定ファイル(VLMConfig)をセットしてください")]
     public VLMConfig config;
 
     [Header("Dependencies")]
-    [Tooltip("撮影時に線を消すために制御するCarController")]
+    [Tooltip("撮影時にレイキャストの線を消すために制御するCarController")]
     public CarController carController;
 
-    // ▼▼▼ 修正: カメラを役割ごとに明確に指定 ▼▼▼
+    // =================================================================
+    // 2. カメラ設定 (各視点で使用するカメラを割り当て)
+    // =================================================================
     [Header("Camera Setup")]
-    [Tooltip("一人称視点 (FPS) および マルチビューの上半分で使用")]
+    [Tooltip("FPSモード / MultiView(上) / Surround(左上) で使用するカメラ")]
     public Camera frontCamera;
 
-    [Tooltip("三人称視点 (TPS) で使用")]
-    public Camera tpsCamera;
+    [Tooltip("Surround(右上) で使用する後方カメラ")]
+    public Camera backCamera; 
 
-    [Tooltip("マルチビューの下半分 (俯瞰) で使用")]
+    [Tooltip("MultiView(下) で使用する俯瞰カメラ")]
     public Camera topCamera;
-    // ▲▲▲ 修正ここまで ▲▲▲
 
-    // [Header("Camera Selection")]
-    // [Tooltip("ここに入力した番号（Element番号）のカメラが使われます")]
-    // public int selectedCameraIndex = 0;
+    [Tooltip("Surround(左下) で使用する左側面カメラ")]
+    public Camera leftCamera;
+
+    [Tooltip("Surround(右下) で使用する右側面カメラ")]
+    public Camera rightCamera;
 
     [SerializeField] private TMP_Text VLMText;
 
+    // =================================================================
+    // 3. 通信・撮影設定
+    // =================================================================
     [Header("Ollama Connection")]
     public string ollamaUrl = "http://localhost:11434/api/chat";
 
     [Header("Capture Settings")]
-    [Tooltip("VLMに送る画像の幅。小さいほど高速です。(推奨: 640 or 512)")]
+    [Tooltip("VLMに送る画像の幅。小さいほど高速です。(推奨: 512)")]
     public int captureWidth = 512;
     
-    [Tooltip("VLMに送る画像の高さ。(推奨: 360 or 512)")]
+    [Tooltip("VLMに送る画像の高さ。(推奨: 512)")]
     public int captureHeight = 512;
     
     [Header("Input")]
-    [Tooltip("VLM（写真撮影）を起動するキー")]
+    [Tooltip("手動でVLM（写真撮影）を起動するキー")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
 
-    // [Header("Multi-View Settings")]
-    // [Tooltip("オンにすると、Capture Camerasの Element 0（上半分）と Element 1（下半分）を縦に結合して送ります")]
-    // public bool useMultiView = false;
+    // =================================================================
+    // 4. コ・パイロット (自動警告) 設定 ★追加機能★
+    // =================================================================
+    [Header("Co-pilot / Auto Warning Settings")]
+    [Tooltip("チェックを入れると、障害物が近づいた時に自動でAIに問い合わせます")]
+    public bool enableAutoWarning = true; 
 
+    [Tooltip("障害物がこの距離(m)以内に入ったら自動発動します")]
+    public float autoWarningDistance = 2.0f; 
+    
+    [Tooltip("一度警告したら、次の警告まで何秒待つか（連続発動の防止）")]
+    public float warningCooldown = 5.0f; 
+
+    // 内部変数
+    private float lastWarningTime = -100f; // 前回の警告時刻
+    private bool isProcessing = false;     // 現在AIと通信中かどうか
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
 
-    private bool isProcessing = false;
-
+    // =================================================================
+    // 初期化 (Start)
+    // =================================================================
     void Start()
     {
         // 必須設定のチェック
-        if (config == null) Debug.LogError("VLM Config が設定されていません！ Projectウィンドウで作成してセットしてください。");
+        if (config == null) 
+            Debug.LogError("VLM Config が設定されていません！ Projectウィンドウで作成してセットしてください。");
 
+        // UI表示の更新
         if (VLMText != null)
         {
             string modelName = config != null ? config.ModelName : "Unknown";
             VLMText.text = $"VLM: Ready ({modelName})";
         }
 
+        // カメラ設定の警告（開発者が気づきやすいように）
+        if (frontCamera == null) Debug.LogWarning("Front Camera 未設定");
+        if (backCamera == null) Debug.LogWarning("Back Camera 未設定");
+        if (leftCamera == null) Debug.LogWarning("Left Camera 未設定");
+        if (rightCamera == null) Debug.LogWarning("Right Camera 未設定");
+
         Debug.Log("VLM Client Initialized.");
     }
 
+    // =================================================================
+    // メインループ (Update)
+    // =================================================================
     void Update()
     {
-        // キー入力で撮影開始
+        // ---------------------------------------------------------
+        // A. 手動トリガー (キー入力)
+        // ---------------------------------------------------------
         if (Input.GetKeyDown(vlmActivationKey) && !isProcessing && config != null)
         {
             StartCoroutine(SendRequestToOllama());
         }
+
+        // ---------------------------------------------------------
+        // B. 自動安全トリガー (センサー連携)
+        // ---------------------------------------------------------
+        // 条件: 機能がON && AIが暇 && 設定がある
+        if (enableAutoWarning && !isProcessing && config != null)
+        {
+            RaycastHit hit;
+
+            // ▼▼▼ 修正: CarControllerに合わせて、少し高い位置(0.5m)から発射する ▼▼▼
+            Vector3 rayOrigin = transform.position + new Vector3(0, 0.5f, 0);
+
+            // 車の正面(transform.forward)に向かって見えない線を飛ばす
+            if (Physics.Raycast(rayOrigin, transform.forward, out hit, autoWarningDistance))
+            {
+                // 壁などにぶつかった、かつ クールダウン時間が経過している場合
+                if (Time.time - lastWarningTime > warningCooldown)
+                {
+                    Debug.LogWarning($"【Auto】障害物接近！({hit.distance:F1}m) AIに危険性を確認させます");
+                    lastWarningTime = Time.time; // タイマー更新
+                    
+                    // AIへのリクエスト開始
+                    StartCoroutine(SendRequestToOllama());
+                }
+            }
+        }
     }
 
-    // ========== メイン処理 ==========
-
-private IEnumerator SendRequestToOllama()
+    // =================================================================
+    // AI通信のメイン処理 (コルーチン)
+    // =================================================================
+    private IEnumerator SendRequestToOllama()
     {
-        if (isProcessing) yield break;
+        if (isProcessing) yield break; // 二重実行防止
         isProcessing = true;
 
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
-        // ▼▼▼ 追加: 使用するモジュール一覧をログに出力 ▼▼▼
+        // --- 1. 使用モジュールのログ出力 ---
         StringBuilder moduleLog = new StringBuilder();
         moduleLog.AppendLine("【Active Modules (使用中のモジュール)】");
-
         if (config.activeModules != null && config.activeModules.Count > 0)
         {
             foreach (var module in config.activeModules)
-            {
-                if (module != null)
-                {
-                    moduleLog.AppendLine($"- {module.moduleName}");
-                }
-            }
+                if (module != null) moduleLog.AppendLine($"- {module.moduleName}");
         }
         else
         {
             moduleLog.AppendLine("- None (Free Form Mode / 自由会話モード)");
         }
         Debug.Log(moduleLog.ToString());
-        // ▲▲▲ 追加ここまで ▲▲▲
 
-        // --- 1. 画像撮影 ---
+        // --- 2. 画像撮影処理 ---
         string base64Image = null;
+        
+        // 撮影の瞬間だけ赤い線を消す
         if (carController != null) carController.SetRaycastLineVisibility(false);
-        yield return null; 
+        yield return null; // 1フレーム待つ
 
         Texture2D photo = null;
 
-        // ▼▼▼ 修正: ConfigのViewModeに従ってカメラを選ぶ ▼▼▼
+        // ConfigのViewModeに従って、適切なカメラの組み合わせで撮影する
         switch (config.viewMode)
         {
             case VLMConfig.ViewMode.FPS:
-                // FPSモード: FrontCameraを使用
-                if (frontCamera != null)
-                {
-                    photo = CaptureCameraView(frontCamera);
-                }
+                if (frontCamera != null) photo = CaptureCameraView(frontCamera);
                 else Debug.LogError("FPSモードですが、Front Cameraが設定されていません。");
                 break;
 
-            case VLMConfig.ViewMode.TPS:
-                // TPSモード: TPSCameraを使用
-                if (tpsCamera != null)
-                {
-                    photo = CaptureCameraView(tpsCamera);
-                }
-                else Debug.LogError("TPSモードですが、TPS Cameraが設定されていません。");
+            case VLMConfig.ViewMode.MultiView:
+                // 前方 + 俯瞰 の縦結合
+                if (frontCamera != null && topCamera != null) 
+                    photo = CaptureCombinedView(frontCamera, topCamera);
+                else Debug.LogError("MultiViewモードエラー: カメラ不足");
                 break;
 
-            case VLMConfig.ViewMode.MultiView:
-                // MultiViewモード: Front + Top を結合
-                if (frontCamera != null && topCamera != null)
-                {
-                    photo = CaptureCombinedView(frontCamera, topCamera);
-                }
-                else Debug.LogError("MultiViewモードですが、Front Camera または Top Camera が設定されていません。");
+            case VLMConfig.ViewMode.SurroundView:
+                // 前後左右の4枚結合
+                if (frontCamera != null && backCamera != null && leftCamera != null && rightCamera != null)
+                    photo = CaptureSurroundView(frontCamera, backCamera, leftCamera, rightCamera);
+                else Debug.LogError("SurroundViewエラー: カメラ不足(4台必要)");
                 break;
         }
-        // ▲▲▲ 修正ここまで ▲▲▲
+
         if (photo == null)
         {
              Debug.LogError("撮影に失敗しました (Photo is null)");
@@ -157,40 +206,37 @@ private IEnumerator SendRequestToOllama()
              yield break;
         }
 
+        // 線を再表示
         if (carController != null) carController.SetRaycastLineVisibility(true);
         
+        // 画像をバイト配列に変換 -> 保存 -> Base64化
         byte[] bytes = photo.EncodeToJPG();
-
-        // 画像保存
         SaveImageToFile(bytes);
-
         base64Image = System.Convert.ToBase64String(bytes);
-        Destroy(photo);
-        // ---------------------------
+        Destroy(photo); // メモリ解放
+        
+        // --- 3. プロンプトとJSONの準備 ---
 
-        // ▼▼▼ プロンプト取得 (Config側でモードに応じて切り替わる) ▼▼▼
+        // プロンプトのエスケープ処理
         string currentPromptText = config.CurrentPrompt;
         string safePrompt = currentPromptText.Replace("\"", "\\\"").Replace("\n", "\\n");
 
-        // ▼▼▼ 追加: オプションのJSON文字列を作成 ▼▼▼
+        // Ollamaオプション作成 (トークン数やコンテキストサイズ)
         OllamaOptions options = new OllamaOptions
         {
-            num_predict = config.maxTokens,   // Configの値をセット
-            temperature = config.temperature,  // Configの値をセット
-            num_ctx = config.contextSize      // これを送らないと画像で溢れます
+            num_predict = config.maxTokens,
+            temperature = config.temperature,
+            num_ctx = config.contextSize
         };
         string optionsJson = JsonUtility.ToJson(options);
-        // ▲▲▲ 追加ここまで ▲▲▲
 
-        // ▼▼▼ 修正: モジュールがあるかないかで JSON の作り方を変える ▼▼▼
-        
+        // 送信JSONの構築
         string jsonBody = "";
         bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
 
         if (isFreeForm)
         {
-            // パターンA: モジュールなし (Free Form) -> "format" を含めない
-            // ▼▼▼ 修正: options を追加 ▼▼▼
+            // 自由記述モード
             jsonBody = $@"
             {{
                 ""model"": ""{config.ModelName}"",
@@ -207,10 +253,9 @@ private IEnumerator SendRequestToOllama()
         }
         else
         {
-            // パターンB: モジュールあり (Schema Mode) -> "format" を含める
+            // スキーマ(構造化)モード
             string schemaJson = BuildDynamicSchemaJson(config.activeModules);
             
-            // ▼▼▼ 修正: options を追加 ▼▼▼
             jsonBody = $@"
             {{
                 ""model"": ""{config.ModelName}"",
@@ -227,29 +272,20 @@ private IEnumerator SendRequestToOllama()
             }}";
         }
 
-        // ▼▼▼ 追加: 送信JSONのデバッグ表示 (画像データは省略して表示) ▼▼▼
+        // --- 4. デバッグログ出力 ---
         if (!string.IsNullOrEmpty(jsonBody))
         {
-            // ログ用にコピーを作成
             string debugJson = jsonBody;
-
-            // 長すぎるBase64画像データを "<IMAGE_DATA>" に置換して見やすくする
+            // ログが埋め尽くされないよう、画像データ部分は隠す
             if (!string.IsNullOrEmpty(base64Image))
             {
                 debugJson = debugJson.Replace(base64Image, "<IMAGE_DATA_OMITTED>");
             }
-
-            // ▼▼▼ 修正: カメラモードもログに含める ▼▼▼
             Debug.Log($"【Current Camera Mode】: {config.viewMode}");
             Debug.Log($"【Request Debug】Sending JSON:{debugJson}");
-            // ▲▲▲ 修正ここまで ▲▲▲
-
-            // 置換処理（Replace）を行わず、そのまま表示します
-            // Debug.Log($"【Request Debug】FULL JSON (Warning: Huge Data){jsonBody}");
         }
-        // ▲▲▲ 追加ここまで ▲▲▲
 
-        // --- 3. 通信処理 ---
+        // --- 5. HTTP通信処理 ---
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
         {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
@@ -261,26 +297,24 @@ private IEnumerator SendRequestToOllama()
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                // エラー処理 (省略)
                 Debug.LogError("Error: " + request.error);
                 if (VLMText != null) VLMText.text = "Error: " + request.error;
             }
             else
             {
                 string rawJson = request.downloadHandler.text;
-                Debug.Log("RAW JSON: " + rawJson); // ★この行を追加！
+                Debug.Log("RAW JSON: " + rawJson);
+                
+                // 応答から本文を抽出
                 string contentJson = ExtractContent(rawJson);
                 Debug.Log("AI Response: " + contentJson);
 
-                // ▼▼▼ 修正: 表示処理の分岐 ▼▼▼
                 if (isFreeForm)
                 {
-                    // Free Form ならそのままテキストを表示
                     if (VLMText != null) VLMText.text = contentJson;
                 }
                 else
                 {
-                    // Schema Mode ならパースして表示
                     DisplayDynamicResult(contentJson);
                 }
             }
@@ -289,11 +323,9 @@ private IEnumerator SendRequestToOllama()
         isProcessing = false;
     }
 
-    // ========== 🛠️ 動的ロジック ==========
-
-/// <summary>
-    /// Configに登録されたモジュールから、JSON Schema文字列を動的に生成する
-    /// </summary>
+    // =================================================================
+    // ヘルパー: JSON Schemaの動的生成
+    // =================================================================
     private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
     {
         StringBuilder sb = new StringBuilder();
@@ -309,15 +341,14 @@ private IEnumerator SendRequestToOllama()
             foreach (var prop in module.properties)
             {
                 requiredKeys.Add($"\"{prop.name}\"");
-
                 string typeDef = "";
                 
-                // ▼▼▼ 修正: Arrayタイプの処理を追加 ▼▼▼
+                // 配列型の定義
                 if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Array)
                 {
-                    // 文字列の配列として定義する
                     typeDef = $@"{{ ""type"": ""array"", ""items"": {{ ""type"": ""string"" }}, ""description"": ""{prop.description}"" }}";
                 }
+                // Enum型の定義
                 else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum)
                 {
                     string[] opts = prop.enumOptions.Split(',');
@@ -325,15 +356,16 @@ private IEnumerator SendRequestToOllama()
                     string enumStr = string.Join("\",\"", opts); 
                     typeDef = $@"{{ ""type"": ""string"", ""enum"": [""{enumStr}""], ""description"": ""{prop.description}"" }}";
                 }
+                // Boolean型の定義
                 else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Boolean)
                 {
                     typeDef = $@"{{ ""type"": ""boolean"", ""description"": ""{prop.description}"" }}";
                 }
+                // String型の定義
                 else
                 {
                     typeDef = $@"{{ ""type"": ""string"", ""description"": ""{prop.description}"" }}";
                 }
-                
                 props.Add($"\"{prop.name}\": {typeDef}");
             }
         }
@@ -346,9 +378,9 @@ private IEnumerator SendRequestToOllama()
         return sb.ToString();
     }
 
-    /// <summary>
-    /// AIからのJSON応答を正規表現で解析し、UIに綺麗に表示する
-    /// </summary>
+    // =================================================================
+    // ヘルパー: 結果の表示 (色付け・整形)
+    // =================================================================
     private void DisplayDynamicResult(string jsonResponse)
     {
         StringBuilder sb = new StringBuilder();
@@ -361,7 +393,7 @@ private IEnumerator SendRequestToOllama()
             
             foreach (var prop in module.properties)
             {
-                // 配列 [...] も 文字列 "..." も両方拾える正規表現
+                // JSONからキーに対応する値を正規表現で抜く
                 string pattern = $"\"{prop.name}\"\\s*:\\s*(\\[.*?\\]|\".*?\")";
                 Match match = Regex.Match(jsonResponse, pattern, RegexOptions.Singleline);
 
@@ -369,48 +401,24 @@ private IEnumerator SendRequestToOllama()
                 {
                     string val = match.Groups[1].Value.Trim();
 
-                    // ▼▼▼ 修正: 値の整形処理 (記号を消す) ▼▼▼
+                    // 配列やクォートの除去
+                    if (val.StartsWith("[")) val = val.Replace("[", "").Replace("]", "").Replace("\"", "");
+                    else val = val.Trim('"');
                     
-                    if (val.StartsWith("[")) 
-                    {
-                        // 配列の場合: [ ] " をすべて削除して、カンマ区切りだけにする
-                        // 例: ["cube", "sphere"]  ->  cube, sphere
-                        val = val.Replace("[", "").Replace("]", "").Replace("\"", "");
-                    }
-                    else 
-                    {
-                        // 文字列の場合: 両端の " を削除
-                        val = val.Trim('"');
-                    }
+                    val = val.Replace("**", ""); // 強調記号の削除
 
-                    // 値が空っぽなら "None" と表示するなどの調整
                     if (string.IsNullOrWhiteSpace(val)) val = "None";
 
-
-                    // --- 色付けロジック (変更なし) ---
+                    // 色付けロジック
                     string displayVal = val;
-                    string lowerVal = val.ToLower(); // 小文字で判定
+                    string lowerVal = val.ToLower();
                     if (lowerVal.Contains("high") || lowerVal.Contains("danger") || lowerVal == "true" || lowerVal.Contains("critical")) 
-                    {
-                        // 危険系 -> 赤
                         displayVal = $"<color=red>{val}</color>";
-                    }
                     else if (lowerVal.Contains("safe") || lowerVal == "false" || lowerVal.Contains("clear") || lowerVal == "none")
-                    {
-                        // 安全系 -> 緑
                         displayVal = $"<color=green>{val}</color>";
-                    }
                     else if (lowerVal.Contains("caution") || lowerVal.Contains("warning") || lowerVal.Contains("medium"))
-                    {
-                        // 注意系 -> 黄色
                         displayVal = $"<color=yellow>{val}</color>";
-                    }
-                    else
-                    {
-                        // その他（物体名など） -> 色を変えない（デフォルトの白）
-                        displayVal = val;
-                    }
-
+                    
                     sb.AppendLine($"- {prop.name}: {displayVal}");
                 }
                 else
@@ -424,20 +432,30 @@ private IEnumerator SendRequestToOllama()
         if (VLMText != null) VLMText.text = sb.ToString();
     }
 
-    // OllamaのレスポンスJSONから .message.content の中身だけ抜くヘルパー
+    // =================================================================
+    // ヘルパー: 本文抽出とクリーニング
+    // =================================================================
     private string ExtractContent(string fullJson)
     {
         try
         {
-            return JsonUtility.FromJson<OllamaResponse>(fullJson).message.content;
+            string content = JsonUtility.FromJson<OllamaResponse>(fullJson).message.content;
+            // アスタリスク(**)を一括削除して綺麗にする
+            if (!string.IsNullOrEmpty(content))
+            {
+                content = content.Replace("**", "");
+            }
+            return content;
         }
         catch
         {
-            return fullJson; // パース失敗時はそのまま返す
+            return fullJson;
         }
     }
 
-    // ========== ヘルパー関数 (画像処理など) ==========
+    // =================================================================
+    // ヘルパー: 画像撮影・加工
+    // =================================================================
 
     private void SaveImageToFile(byte[] bytes)
     {
@@ -450,56 +468,39 @@ private IEnumerator SendRequestToOllama()
         #endif
     }
 
+    // 単一カメラ撮影
     private Texture2D CaptureCameraView(Camera camera)
     {
-        // ▼▼▼ 修正: 指定した固定解像度を使用する ▼▼▼
         int width = captureWidth;
         int height = captureHeight;
-
-        // RenderTextureを作成 (指定サイズで)
         RenderTexture renderTexture = new RenderTexture(width, height, 24);
         camera.targetTexture = renderTexture;
-        
-        // レンダリング
         camera.Render();
-        
         RenderTexture.active = renderTexture;
-        
-        // Texture2Dも同じサイズで作る
         Texture2D screenshot = new Texture2D(width, height, TextureFormat.RGB24, false);
-        
-        // 読み込み範囲も (0, 0, width, height) にする
         screenshot.ReadPixels(new Rect(0, 0, width, height), 0, 0);
         screenshot.Apply();
-        
-        // 後始末
         camera.targetTexture = null;
         RenderTexture.active = null;
         Destroy(renderTexture);
-        
         return screenshot;
     }
 
-    // ▼▼▼ 修正: 引数でカメラを受け取るように変更 ▼▼▼
-    // 上半分=cam1(Front), 下半分=cam2(Top)
+    // 2枚結合 (MultiView: 上下)
     private Texture2D CaptureCombinedView(Camera cam1, Camera cam2)
     {
         int w = captureWidth;
         int h = captureHeight;
         int totalW = w;
         int totalH = h * 2;
-
         Texture2D combinedTex = new Texture2D(totalW, totalH, TextureFormat.RGB24, false);
 
-        // 1. 上半分 (Front Camera)
         if (cam1 != null)
         {
             Texture2D tex1 = CaptureCameraView(cam1);
             combinedTex.SetPixels(0, h, w, h, tex1.GetPixels());
             Destroy(tex1);
         }
-
-        // 2. 下半分 (Top Camera)
         if (cam2 != null)
         {
             Texture2D tex2 = CaptureCameraView(cam2);
@@ -520,7 +521,55 @@ private IEnumerator SendRequestToOllama()
         return combinedTex;
     }
 
-    // Unity JsonUtility用のラッパークラス (外側のレスポンス用)
+    // 4枚結合 (SurroundView: 田の字)
+    private Texture2D CaptureSurroundView(Camera front, Camera back, Camera left, Camera right)
+    {
+        int w = captureWidth; 
+        int h = captureHeight;
+        int totalW = w * 2;
+        int totalH = h * 2;
+        Texture2D combined = new Texture2D(totalW, totalH, TextureFormat.RGB24, false);
+
+        // [Front (左上)] [Back  (右上)]
+        // [Left  (左下)] [Right (右下)]
+
+        Texture2D tFront = CaptureCameraView(front);
+        combined.SetPixels(0, h, w, h, tFront.GetPixels());
+        Destroy(tFront);
+
+        Texture2D tBack = CaptureCameraView(back);
+        combined.SetPixels(w, h, w, h, tBack.GetPixels());
+        Destroy(tBack);
+
+        Texture2D tLeft = CaptureCameraView(left);
+        combined.SetPixels(0, 0, w, h, tLeft.GetPixels());
+        Destroy(tLeft);
+
+        Texture2D tRight = CaptureCameraView(right);
+        combined.SetPixels(w, 0, w, h, tRight.GetPixels());
+        Destroy(tRight);
+
+        // 区切り線 (十字)
+        int thickness = 6;
+        Color lineColor = Color.green;
+        
+        // 横線
+        Color[] hLine = new Color[totalW * thickness];
+        for(int i=0; i<hLine.Length; i++) hLine[i] = lineColor;
+        combined.SetPixels(0, h - (thickness/2), totalW, thickness, hLine);
+
+        // 縦線
+        Color[] vLine = new Color[thickness * totalH];
+        for(int i=0; i<vLine.Length; i++) vLine[i] = lineColor;
+        combined.SetPixels(w - (thickness/2), 0, thickness, totalH, vLine);
+
+        combined.Apply();
+        return combined;
+    }
+
+    // =================================================================
+    // 内部クラス (JSONシリアライズ用)
+    // =================================================================
     [System.Serializable]
     public class OllamaResponse
     {
@@ -531,13 +580,11 @@ private IEnumerator SendRequestToOllama()
     {
         public string content;
     }
-
-    // ▼▼▼ 追加: オプション送信用クラス ▼▼▼
     [System.Serializable]
     public class OllamaOptions
     {
-        public int num_predict; // 最大トークン数
-        public float temperature; // 創造性
-        public int num_ctx;     // コンテキスト長 (画像のメモリ確保に必須)
+        public int num_predict;
+        public float temperature;
+        public int num_ctx;
     }
 }

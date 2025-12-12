@@ -7,9 +7,10 @@ public class VLMConfig : ScriptableObject
     // ▼▼▼ 1. カメラモードの定義 ▼▼▼
     public enum ViewMode
     {
-        FPS,        // 一人称 (Front Camera)
-        TPS,        // 三人称 (Back/Top Camera)
-        MultiView   // 結合 (Front + Top)
+        FPS,            // 前 (Front)
+        // TPS は削除しました
+        MultiView,      // 前 + 上 (Front + Top)
+        SurroundView    // 前 + 後 + 左 + 右 (4画面)
     }
 
     public enum ModelType
@@ -35,11 +36,15 @@ public class VLMConfig : ScriptableObject
     [TextArea(3, 10)] [Tooltip("FPSモード用プロンプト")]
     public string promptFPS = "Describe this image.\n...";
     
-    [TextArea(3, 10)] [Tooltip("TPSモード用プロンプト")]
-    public string promptTPS = "Describe this image.\n...";
+    // [TextArea(3, 10)] [Tooltip("TPSモード用プロンプト")]
+    // public string promptTPS = "Describe this image.\n...";
 
     [TextArea(3, 10)] [Tooltip("Multi-Viewモード用プロンプト")]
     public string promptMulti = "Describe this image.\n...";
+
+    [TextArea(3, 10)] 
+    [Tooltip("SurroundViewモード用プロンプト")]
+    public string promptSurround = "Describe this image.\n...";
 
     // 以前の単一プロンプトは、現在選択中のモードに応じて返すように変更
     public string CurrentPrompt
@@ -49,8 +54,9 @@ public class VLMConfig : ScriptableObject
             switch (viewMode)
             {
                 case ViewMode.FPS: return promptFPS;
-                case ViewMode.TPS: return promptTPS;
+                // case ViewMode.TPS: return promptTPS;
                 case ViewMode.MultiView: return promptMulti;
+                case ViewMode.SurroundView: return promptSurround;
                 default: return promptFPS;
             }
         }
