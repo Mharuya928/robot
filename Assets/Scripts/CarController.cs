@@ -91,7 +91,7 @@ public class CarController : MonoBehaviour
     private void CheckRaycastSensor()
     {
         RaycastHit hit;
-        float maxDistance = 10.0f; 
+        float maxDistance = 20.0f; 
         Vector3 rayOrigin = transform.position + new Vector3(0, 0.5f, 0); 
 
         // LineRenderer の始点を設定
