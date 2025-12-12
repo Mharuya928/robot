@@ -9,6 +9,11 @@ public class GoalTrigger : MonoBehaviour
     [Tooltip("結果を表示するUIテキスト")]
     public TMP_Text resultText; // InspectorでVLMTextなどを割り当てる
 
+    // ▼▼▼ 修正: クラス名を TimeManager に変更 ▼▼▼
+    [Tooltip("HierarchyにあるTimeManagerをドラッグ＆ドロップ")]
+    public TimeManager timeManager;
+    // ▲▲▲ 修正ここまで ▲▲▲
+
     private bool hasReachedGoal = false; // 2重判定を防ぐフラグ
 
     // このトリガー（GoalZone）に他のコライダーが入った瞬間に呼ばれる
@@ -21,10 +26,18 @@ public class GoalTrigger : MonoBehaviour
             hasReachedGoal = true;
             Debug.Log("GOAL " + other.name + " has reached the goal.");
 
+            float finalTime = 0f;
+
+            // ▼▼▼ 修正: TimeManagerを使うように変更 ▼▼▼
+            if (timeManager != null)
+            {
+                finalTime = timeManager.StopTimer();
+            }
+
             // UIテキストにゴールを表示
             if (resultText != null)
             {
-                resultText.text = "GOAL";
+                resultText.text = "GOAL!!\nTime: " + finalTime.ToString("F2") + "s";
             }
             
             // （オプション）ここでシミュレーションを停止したり、次のレベルに進む処理を呼ぶ
