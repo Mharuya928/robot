@@ -21,6 +21,11 @@ public class VLMClient : MonoBehaviour
     [Tooltip("撮影時にレイキャストの線を消すために制御するCarController")]
     public CarController carController;
 
+    // ▼▼▼ 追加: TimeManagerへの参照 ▼▼▼
+    [Tooltip("タイマーを開始させるためにセットしてください")]
+    public TimeManager timeManager;
+    // ▲▲▲ 追加ここまで ▲▲▲
+
     // =================================================================
     // 2. カメラ設定 (各視点で使用するカメラを割り当て)
     // =================================================================
@@ -113,6 +118,12 @@ public class VLMClient : MonoBehaviour
         // ---------------------------------------------------------
         if (Input.GetKeyDown(vlmActivationKey) && !isProcessing && config != null)
         {
+            // ▼▼▼ 追加: キーを押したらタイマー開始！ ▼▼▼
+            if (timeManager != null)
+            {
+                timeManager.StartTimer();
+            }
+            // ▲▲▲ 追加ここまで ▲▲▲
             StartCoroutine(SendRequestToOllama());
         }
 

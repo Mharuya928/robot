@@ -1,102 +1,146 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using System.IO;
+using System;
 
 public class TimeManager : MonoBehaviour
 {
     [Header("UI設定")]
-    [Tooltip("タイムを表示するテキスト")]
     public TMP_Text timerText;
-
-    [Tooltip("スタート/ストップを切り替えるボタン")]
     public Button startStopButton;
-    
-    [Tooltip("スタートボタンのラベルテキスト (Start/Stopの文字変更用)")]
     public TMP_Text startStopLabel; 
-
-    [Tooltip("リセットボタン")]
     public Button resetButton;
 
+    // [Header("連携")]
+    // public ObstacleRandomizer obstacleRandomizer;
+    // public CarRandomizer carRandomizer;
+
+    [Header("自動化設定")]
+    [Tooltip("チェックを入れると、ゲーム開始(VLM起動)と同時にタイマーが動きます")]
+    public bool autoStart = false; // 自動スタートはOFF(手動/TAB推奨)
+
+    [Header("保存設定")]
+    public bool saveResults = true;
+    
+    [Tooltip("Assetsフォルダ内のどのフォルダに保存するか")]
+    public string saveFolderName = "BenchmarkData"; // ★追加
+
+    [Tooltip("ファイル名")]
+    public string fileName = "BenchmarkResults.csv";
+
     // 内部変数
-    private bool isRunning = false; // 計測中かどうか
-    private float startTime;        // 計測開始時刻
-    private float elapsedOffset = 0f; // 一時停止するまでの累積時間
+    private bool isRunning = false;
+    public bool IsRunning => isRunning;
+    private float startTime;
+    private float elapsedOffset = 0f;
 
     void Start()
     {
-        // ボタンに処理を登録
-        if (startStopButton != null)
-            startStopButton.onClick.AddListener(OnStartStopPressed);
-
-        if (resetButton != null)
-            resetButton.onClick.AddListener(OnResetPressed);
-
-        // ▼▼▼ 追加: ゲーム開始時に0秒を表示する ▼▼▼
-        if (timerText != null)
-        {
-            timerText.text = "Time: 0.00";
-        }
-        // ▲▲▲ 追加ここまで ▲▲▲
+        if (startStopButton != null) startStopButton.onClick.AddListener(OnStartStopPressed);
+        if (resetButton != null) resetButton.onClick.AddListener(OnResetPressed);
+        
+        UpdateTimerText(0f);
+        
+        if (autoStart) StartTimer();
     }
 
     void Update()
     {
-        // 計測中ならタイムを更新
         if (isRunning)
         {
             float currentTime = (Time.time - startTime) + elapsedOffset;
-            if (timerText != null)
-            {
-                timerText.text = "Time: " + currentTime.ToString("F2");
-            }
+            UpdateTimerText(currentTime);
         }
     }
 
-    // スタート/ストップボタンが押された時の処理
+    private void UpdateTimerText(float time)
+    {
+        if (timerText != null) timerText.text = "Time: " + time.ToString("F2");
+    }
+
     public void OnStartStopPressed()
     {
-        if (isRunning)
-        {
-            // ストップ処理
-            StopTimer();
-        }
-        else
-        {
-            // スタート（または再開）処理
-            isRunning = true;
-            startTime = Time.time;
-            
-            // UI更新
-            if (startStopLabel != null) startStopLabel.text = "Stop";
-            if (resetButton != null) resetButton.interactable = false; // 走行中はリセット不可
-        }
+        if (isRunning) StopTimer();
+        else StartTimer();
     }
 
-    // リセットボタンが押された時の処理
+    public void StartTimer()
+    {
+        if (isRunning) return;
+        isRunning = true;
+        startTime = Time.time;
+        
+        if (startStopLabel != null) startStopLabel.text = "Stop";
+        if (resetButton != null) resetButton.interactable = false;
+        
+        Debug.Log("Timer Started");
+    }
+
     public void OnResetPressed()
     {
-        // 計測中でない場合のみリセット可能
         if (!isRunning)
         {
             elapsedOffset = 0f;
-            if (timerText != null) timerText.text = "Time: 0.00";
-            Debug.Log("Timer Reset");
+            UpdateTimerText(0f);
+            
+            // if (obstacleRandomizer != null) obstacleRandomizer.Shuffle();
+            // if (carRandomizer != null) carRandomizer.Shuffle();
+
+            Debug.Log("Reset Complete.");
         }
     }
 
-    // タイマーを止める（ボタンまたはGoalTriggerから呼ばれる）
     public float StopTimer()
     {
         if (isRunning)
         {
             isRunning = false;
-            // 経過時間を保存しておく（再開時に使うため）
-            elapsedOffset += Time.time - startTime;
+            float currentRunTime = Time.time - startTime;
+            elapsedOffset += currentRunTime;
             
-            // UI更新
             if (startStopLabel != null) startStopLabel.text = "Start";
-            if (resetButton != null) resetButton.interactable = true; // 停止中はリセット可能
+            if (resetButton != null) resetButton.interactable = true;
+
+            if (saveResults) SaveResultToFile(elapsedOffset);
         }
         return elapsedOffset;
     }
+
+    // ▼▼▼ 修正: Assetsフォルダ内に保存する処理 ▼▼▼
+    private void SaveResultToFile(float time)
+    {
+        // 1. 保存先フォルダのパスを作る (Assets/BenchmarkData)
+        string folderPath = Path.Combine(Application.dataPath, saveFolderName);
+
+        // 2. フォルダがなければ作る
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // 3. ファイルパスを作る
+        string filePath = Path.Combine(folderPath, fileName);
+        
+        string date = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss");
+        string line = $"{date}, {time:F2}";
+
+        try
+        {
+            if (!File.Exists(filePath)) File.WriteAllText(filePath, "Date, Time(sec)\n");
+            File.AppendAllText(filePath, line + "\n");
+            
+            Debug.Log($"Result saved to: {filePath} -> {line}");
+
+            // 4. Unityエディタ上でファイルが表示されるように更新をかける (エディタ実行時のみ)
+            #if UNITY_EDITOR
+            UnityEditor.AssetDatabase.Refresh();
+            #endif
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Save Error: " + e.Message);
+        }
+    }
+    // ▲▲▲ 修正ここまで ▲▲▲
 }
