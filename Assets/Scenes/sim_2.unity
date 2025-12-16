@@ -7285,6 +7285,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   config: {fileID: 11400000, guid: 6811dcd30c62ff2e6bfe854efbf05b23, type: 2}
   carController: {fileID: 1064351411}
+  timeManager: {fileID: 1114936329}
   frontCamera: {fileID: 788334834}
   backCamera: {fileID: 644339129}
   topCamera: {fileID: 1445993929}
@@ -7649,6 +7650,10 @@ MonoBehaviour:
   startStopButton: {fileID: 1534175284}
   startStopLabel: {fileID: 1944774777}
   resetButton: {fileID: 890673495}
+  autoStart: 0
+  saveResults: 1
+  saveFolderName: BenchmarkData
+  fileName: BenchmarkResults.csv
 --- !u!4 &1114936330
 Transform:
   m_ObjectHideFlags: 0
