@@ -11,11 +11,11 @@ public class CarStatusUI : MonoBehaviour
     [SerializeField] private RectTransform wheelFR;
     [SerializeField] private RectTransform wheelRL;
     [SerializeField] private RectTransform wheelRR;
-    
-    [SerializeField] private Slider motorSlider; 
+
+    [SerializeField] private Slider motorSlider;
 
     [Header("Visualization Settings")]
-    public float steeringMultiplier = -1.0f; 
+    public float steeringMultiplier = -1.0f;
     public TMPro.TextMeshProUGUI speedText;
 
     void Start()
@@ -27,7 +27,7 @@ public class CarStatusUI : MonoBehaviour
         }
 
         // --- UI要素の自動取得 ---
-        
+
         // MotorSlider の取得
         Transform sliderTr = transform.Find("MotorSlider");
         if (sliderTr != null)
@@ -95,7 +95,7 @@ public class CarStatusUI : MonoBehaviour
             if (isBraking)
             {
                 // ブレーキ時は -1 (一番下) にする
-                motorSlider.value = -1.0f; 
+                motorSlider.value = -1.0f;
             }
             else
             {
@@ -104,16 +104,16 @@ public class CarStatusUI : MonoBehaviour
             }
         }
 
-        if(targetCar != null && speedText != null)
+        if (targetCar != null && speedText != null)
         {
             // 3. 現在の速度を表示
             if (speedText != null)
             {
-                // 速度ベクトル(m/s)の長さを取得し、3.6倍して km/h に変換
-                float speedKmh = targetCar.GetComponent<Rigidbody>().velocity.magnitude * 3.6f;
-                
-                // 小数点以下0桁（整数）で表示
-                speedText.text = $"{speedKmh:F0} km/h";
+                // 速度ベクトル(m/s)の長さを取得
+                float speedMs = targetCar.GetComponent<Rigidbody>().velocity.magnitude;
+
+                // 小数点以下1桁で表示（必要なら 0 桁でも可）
+                speedText.text = $"{speedMs:F1} m/s";
             }
         }
     }
