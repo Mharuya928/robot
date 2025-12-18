@@ -15,14 +15,14 @@ MonoBehaviour:
   moduleName: ObstacleAnalysis
   properties:
   - name: obstacle_info
-    description: 
     type: 0
     enumOptions: 
+    schemaReference: {fileID: 0}
   - name: open_space_side
-    description: 
     type: 1
     enumOptions: Left,Right,Center,None
+    schemaReference: {fileID: 0}
   - name: recommended_action
-    description: 
     type: 1
     enumOptions: Go_Straight, Avoid_to_Left, Avoid_to_Right, Stop
+    schemaReference: {fileID: 0}

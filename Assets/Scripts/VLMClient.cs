@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
-using System.Linq; // List操作用
+using System.Linq;
 
 public class VLMClient : MonoBehaviour
 {
@@ -105,7 +105,7 @@ public class VLMClient : MonoBehaviour
     }
 
     // =================================================================
-    // AI通信のメイン処理 (修正版)
+    // AI通信のメイン処理
     // =================================================================
     private IEnumerator SendRequestToOllama()
     {
@@ -118,11 +118,10 @@ public class VLMClient : MonoBehaviour
         if (config.activeModules != null) foreach(var m in config.activeModules) if(m) moduleLog.AppendLine(m.moduleName);
         Debug.Log($"Active Modules:\n{moduleLog}");
 
-        // 線を消す
         if (carController != null) carController.SetRaycastLineVisibility(false);
         yield return null; 
 
-        // ▼▼▼ 修正: 複数画像をリストで取得 ▼▼▼
+        // 複数画像をリストで取得
         List<Texture2D> capturedTextures = new List<Texture2D>();
 
         switch (config.viewMode)
@@ -132,14 +131,12 @@ public class VLMClient : MonoBehaviour
                 break;
 
             case VLMConfig.ViewMode.MultiView:
-                // 順番: 1.前方, 2.上方
                 if (frontCamera) capturedTextures.Add(CaptureCameraView(frontCamera));
                 if (topCamera) capturedTextures.Add(CaptureCameraView(topCamera));
                 break;
 
             case VLMConfig.ViewMode.SurroundView:
                 // 順番: 1.前方, 2.後方, 3.左, 4.右
-                // ※プロンプトでこの順番をAIに伝える必要があります
                 if (frontCamera) capturedTextures.Add(CaptureCameraView(frontCamera));
                 if (backCamera) capturedTextures.Add(CaptureCameraView(backCamera));
                 if (leftCamera) capturedTextures.Add(CaptureCameraView(leftCamera));
@@ -154,19 +151,16 @@ public class VLMClient : MonoBehaviour
              yield break;
         }
 
-        // 線を戻す
         if (carController != null) carController.SetRaycastLineVisibility(true);
 
-        // ▼▼▼ 修正: 全画像をBase64リストに変換 ▼▼▼
+        // 全画像をBase64リストに変換
         List<string> base64Images = new List<string>();
-        
         for (int i = 0; i < capturedTextures.Count; i++)
         {
             byte[] bytes = capturedTextures[i].EncodeToJPG();
-            // 保存（デバッグ用: ファイル名にインデックスをつける）
             SaveImageToFile(bytes, i); 
             base64Images.Add(System.Convert.ToBase64String(bytes));
-            Destroy(capturedTextures[i]); // メモリ解放
+            Destroy(capturedTextures[i]);
         }
 
         // --- JSON構築 ---
@@ -174,18 +168,15 @@ public class VLMClient : MonoBehaviour
         OllamaOptions options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
         string optionsJson = JsonUtility.ToJson(options);
 
-        // 画像配列のJSON文字列を作成 ("img1", "img2", "img3")
         string imagesJsonArray = "";
         if (base64Images.Count > 0)
         {
-            // 各Base64文字列をダブルクォートで囲み、カンマで結合
             imagesJsonArray = "\"" + string.Join("\",\"", base64Images) + "\"";
         }
 
         string jsonBody = "";
         bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
         
-        // メッセージ部分の構築 (images配列を埋め込む)
         string messagesPart = $@"
         [
             {{
@@ -205,8 +196,19 @@ public class VLMClient : MonoBehaviour
             jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesPart}, ""format"": {schemaJson} }}";
         }
 
-        // ログ出力
-        Debug.Log($"【Request Debug】Sending {base64Images.Count} images. Config: {config.name}");
+        // ログ出力 (画像データ省略)
+        if (!string.IsNullOrEmpty(jsonBody))
+        {
+            string debugJson = jsonBody;
+            if (base64Images != null)
+            {
+                foreach (var b64 in base64Images)
+                {
+                    if (!string.IsNullOrEmpty(b64)) debugJson = debugJson.Replace(b64, "<IMAGE_DATA_OMITTED>");
+                }
+            }
+            Debug.Log($"【Request Debug】Config: {config.name}\nSending JSON: {debugJson}");
+        }
 
         // --- 通信 ---
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
@@ -226,6 +228,15 @@ public class VLMClient : MonoBehaviour
             else
             {
                 string rawJson = request.downloadHandler.text;
+                
+                // トークン使用量チェック
+                OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
+                int used = responseData.prompt_eval_count;
+                int limit = config.contextSize;
+                string tokenLog = $"【Token Usage】 Used: {used} / Limit: {limit}";
+                if (used >= limit) Debug.LogError($"{tokenLog} ⚠️不足!");
+                else Debug.Log($"{tokenLog} ✅OK");
+
                 string contentJson = ExtractContent(rawJson);
                 Debug.Log("AI Response: " + contentJson);
                 if (isFreeForm && VLMText) VLMText.text = contentJson;
@@ -236,22 +247,120 @@ public class VLMClient : MonoBehaviour
     }
 
     // =================================================================
-    // ヘルパー関数
+    // ヘルパー: JSON Schemaの動的生成 (Description削除)
+    // =================================================================
+// =================================================================
+    // ヘルパー: JSON Schemaの動的生成 (再帰対応版)
+    // =================================================================
+    private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append(@"{ ""type"": ""object"", ""properties"": {");
+
+        List<string> props = new List<string>();
+        List<string> req = new List<string>();
+
+        foreach (var m in modules)
+        {
+            if (m == null) continue;
+            // モジュールごとのプロパティ定義を取得して結合
+            props.Add(GeneratePropertiesJson(m));
+            
+            // ルートレベルの必須項目リストを作成
+            foreach (var p in m.properties) req.Add($"\"{p.name}\"");
+        }
+
+        sb.Append(string.Join(",", props));
+        sb.Append(@"}, ""required"": [");
+        sb.Append(string.Join(",", req));
+        sb.Append(@"], ""additionalProperties"": false }"); // 厳密なスキーマにする
+
+        return sb.ToString();
+    }
+
+    // プロパティリストのJSON生成 (再帰用)
+    private string GeneratePropertiesJson(VLMSchemaModule module)
+    {
+        if (module == null) return "";
+        List<string> propList = new List<string>();
+
+        foreach (var p in module.properties)
+        {
+            string typeDef = "";
+
+            switch (p.type)
+            {
+                case VLMSchemaModule.SchemaPropertyDefinition.PropertyType.String:
+                    typeDef = @"{ ""type"": ""string"" }";
+                    break;
+
+                case VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Boolean:
+                    typeDef = @"{ ""type"": ""boolean"" }";
+                    break;
+
+                case VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum:
+                    string[] opts = p.enumOptions.Split(',');
+                    for (int i = 0; i < opts.Length; i++) opts[i] = opts[i].Trim();
+                    string enumStr = string.Join("\",\"", opts);
+                    typeDef = $@"{{ ""type"": ""string"", ""enum"": [""{enumStr}""] }}";
+                    break;
+
+                case VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Array:
+                    // 中身の定義がある場合は「オブジェクトの配列」にする
+                    if (p.schemaReference != null)
+                    {
+                        string childProps = GeneratePropertiesJson(p.schemaReference);
+                        string childReq = GetRequiredListJson(p.schemaReference);
+                        typeDef = $@"{{ ""type"": ""array"", ""items"": {{ ""type"": ""object"", ""properties"": {{ {childProps} }}, ""required"": {childReq}, ""additionalProperties"": false }} }}";
+                    }
+                    else
+                    {
+                        // 参照がない場合は従来の「文字列配列」
+                        typeDef = @"{ ""type"": ""array"", ""items"": { ""type"": ""string"" } }";
+                    }
+                    break;
+
+                case VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Object:
+                    // 中身の定義を使って「オブジェクト」を作る
+                    if (p.schemaReference != null)
+                    {
+                        string childProps = GeneratePropertiesJson(p.schemaReference);
+                        string childReq = GetRequiredListJson(p.schemaReference);
+                        typeDef = $@"{{ ""type"": ""object"", ""properties"": {{ {childProps} }}, ""required"": {childReq}, ""additionalProperties"": false }}";
+                    }
+                    else
+                    {
+                        typeDef = @"{ ""type"": ""object"" }";
+                    }
+                    break;
+            }
+            propList.Add($"\"{p.name}\": {typeDef}");
+        }
+        return string.Join(",", propList);
+    }
+
+    // 必須項目リストの生成ヘルパー
+    private string GetRequiredListJson(VLMSchemaModule module)
+    {
+        List<string> req = new List<string>();
+        foreach (var p in module.properties) req.Add($"\"{p.name}\"");
+        return "[" + string.Join(",", req) + "]";
+    }
+
+    // =================================================================
+    // ヘルパー: その他
     // =================================================================
 
-    // 画像保存 (インデックス付きに対応)
     private void SaveImageToFile(byte[] bytes, int index)
     {
         #if UNITY_EDITOR
         string folderPath = Path.Combine(Application.dataPath, saveFolderName);
         if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
-        // ファイル名に連番をつける (capture_DATE_0.jpg, capture_DATE_1.jpg...)
         string fileName = $"capture_{System.DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{index}.jpg";
         File.WriteAllBytes(Path.Combine(folderPath, fileName), bytes);
         #endif
     }
 
-    // 単一カメラ撮影 (これだけ残せばOK)
     private Texture2D CaptureCameraView(Camera camera)
     {
         int width = captureWidth;
@@ -267,40 +376,6 @@ public class VLMClient : MonoBehaviour
         RenderTexture.active = null;
         Destroy(renderTexture);
         return screenshot;
-    }
-
-    // NOTE: 以前の CaptureCombinedView, CaptureSurroundView は不要になったため削除しました。
-
-    // --- JSON Schema構築などは変更なし ---
-    private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.Append(@"{ ""type"": ""object"", ""properties"": {");
-        List<string> req = new List<string>();
-        List<string> props = new List<string>();
-        foreach (var m in modules)
-        {
-            if (m == null) continue;
-            foreach (var p in m.properties)
-            {
-                req.Add($"\"{p.name}\"");
-                string t = "";
-                if (p.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Array) t = $@"{{ ""type"": ""array"", ""items"": {{ ""type"": ""string"" }}, ""description"": ""{p.description}"" }}";
-                else if (p.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Enum) {
-                    string[] opts = p.enumOptions.Split(','); for (int i = 0; i < opts.Length; i++) opts[i] = opts[i].Trim();
-                    string enumStr = string.Join("\",\"", opts);
-                    t = $@"{{ ""type"": ""string"", ""enum"": [""{enumStr}""], ""description"": ""{p.description}"" }}";
-                }
-                else if (p.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Boolean) t = $@"{{ ""type"": ""boolean"", ""description"": ""{p.description}"" }}";
-                else t = $@"{{ ""type"": ""string"", ""description"": ""{p.description}"" }}";
-                props.Add($"\"{p.name}\": {t}");
-            }
-        }
-        sb.Append(string.Join(",", props));
-        sb.Append(@"}, ""required"": [");
-        sb.Append(string.Join(",", req));
-        sb.Append("] }");
-        return sb.ToString();
     }
 
     private void DisplayDynamicResult(string jsonResponse)
@@ -344,7 +419,11 @@ public class VLMClient : MonoBehaviour
         } catch { return fullJson; }
     }
 
-    [System.Serializable] public class OllamaResponse { public ResponseMessage message; }
+    [System.Serializable] public class OllamaResponse { 
+        public ResponseMessage message; 
+        public int prompt_eval_count;
+        public int eval_count;
+    }
     [System.Serializable] public class ResponseMessage { public string content; }
     [System.Serializable] public class OllamaOptions { public int num_predict; public float temperature; public int num_ctx; }
 }
