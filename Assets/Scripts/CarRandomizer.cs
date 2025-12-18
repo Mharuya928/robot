@@ -6,8 +6,8 @@ public class CarRandomizer : MonoBehaviour
     [Tooltip("操作する車本体（CarControllerがついているオブジェクト）")]
     public Transform carTransform;
 
-    [Tooltip("レーンの幅（メートル）。例: 1.5 にすると「左(-1.5) / 真ん中(0) / 右(+1.5)」になります")]
-    public float laneWidth = 1.5f;
+    [Tooltip("隣り合うレーンの間隔（メートル）。")]
+    public float laneWidth = 1.0f; // 5分割なので、少し狭め(1.0など)に調整すると良いかもしれません
 
     // スタート地点を記憶しておく変数
     private Vector3 initialPosition;
@@ -44,24 +44,31 @@ public class CarRandomizer : MonoBehaviour
         // 2. 基準位置を用意
         Vector3 newPos = initialPosition;
 
-        // 3. 「左・中・右」の3択をランダムに決める
-        // Random.Range(int min, int max) は maxを含まないので 0, 1, 2 が出る
-        int laneIndex = Random.Range(0, 3);
+        // 3. 5択をランダムに決める (0〜4)
+        int laneIndex = Random.Range(0, 5);
         string laneName = "Center";
 
         switch (laneIndex)
         {
-            case 0: // 左
+            case 0: // 左端 (Far Left)
+                newPos.x -= (laneWidth * 2);
+                laneName = "Far Left";
+                break;
+            case 1: // 左 (Left)
                 newPos.x -= laneWidth;
                 laneName = "Left";
                 break;
-            case 1: // 真ん中
-                // xはそのまま (0)
+            case 2: // 真ん中 (Center)
+                // xはそのまま
                 laneName = "Center";
                 break;
-            case 2: // 右
+            case 3: // 右 (Right)
                 newPos.x += laneWidth;
                 laneName = "Right";
+                break;
+            case 4: // 右端 (Far Right)
+                newPos.x += (laneWidth * 2);
+                laneName = "Far Right";
                 break;
         }
 
