@@ -41635,8 +41635,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetTag: Player
-  resultText: {fileID: 1874598307}
-  timeManager: {fileID: 0}
+  goalImageObject: {fileID: 196180038862530391}
 --- !u!65 &847071888
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -42087,7 +42086,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   config: {fileID: 11400000, guid: 102ab4a880a432160a9c707b8a4a0201, type: 2}
   carController: {fileID: 1064351411}
-  timeManager: {fileID: 0}
   frontCamera: {fileID: 788334834}
   backCamera: {fileID: 644339129}
   topCamera: {fileID: 1445993929}
@@ -45495,17 +45493,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac0b09e7857660247b1477e93731de29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1874598307 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7500888032425211397, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
-  m_PrefabInstance: {fileID: 196180038862530390}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!43 &1935636726
 Mesh:
   m_ObjectHideFlags: 0
@@ -45926,6 +45913,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+--- !u!1 &196180038862530391 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+  m_PrefabInstance: {fileID: 196180038862530390}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

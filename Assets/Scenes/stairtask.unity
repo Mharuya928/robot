@@ -555,6 +555,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &112769899 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+  m_PrefabInstance: {fileID: 1734373181}
+  m_PrefabAsset: {fileID: 0}
 --- !u!43 &164078134
 Mesh:
   m_ObjectHideFlags: 0
@@ -2451,17 +2456,6 @@ MonoBehaviour:
   m_Damping: 0
   m_DampingWhenOccluded: 0
   m_OptimalTargetDistance: 0
---- !u!114 &723090039 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7500888032425211397, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
-  m_PrefabInstance: {fileID: 1734373181}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!43 &828023553
 Mesh:
   m_ObjectHideFlags: 0
@@ -2640,7 +2634,7 @@ GameObject:
   - component: {fileID: 847071889}
   - component: {fileID: 847071888}
   - component: {fileID: 847071887}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Goal
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2675,7 +2669,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetTag: Player
-  resultText: {fileID: 723090039}
+  goalImageObject: {fileID: 112769899}
 --- !u!65 &847071888
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3092,7 +3086,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   carTransform: {fileID: 7630137965219993621}
-  laneWidth: 2
+  laneWidth: 3
 --- !u!1 &1187608162
 GameObject:
   m_ObjectHideFlags: 3
@@ -8050,6 +8044,10 @@ PrefabInstance:
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1453162368387179382, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2784881783480054670, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_Name
       value: Canvas
@@ -8077,6 +8075,10 @@ PrefabInstance:
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6985314863236865860, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_Pivot.x

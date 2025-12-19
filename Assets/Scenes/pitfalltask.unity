@@ -2602,7 +2602,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   carTransform: {fileID: 1064351407}
-  laneWidth: 1
+  laneWidth: 3
 --- !u!4 &540467894
 Transform:
   m_ObjectHideFlags: 0
@@ -3751,7 +3751,7 @@ GameObject:
   - component: {fileID: 847071889}
   - component: {fileID: 847071888}
   - component: {fileID: 847071887}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Goal
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3786,7 +3786,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetTag: Player
-  resultText: {fileID: 1446021979}
+  goalImageObject: {fileID: 1263773830}
 --- !u!65 &847071888
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5282,6 +5282,11 @@ Mesh:
     offset: 0
     size: 0
     path: 
+--- !u!1 &1263773830 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+  m_PrefabInstance: {fileID: 1763715447}
+  m_PrefabAsset: {fileID: 0}
 --- !u!850595691 &1340964588
 LightingSettings:
   m_ObjectHideFlags: 0
@@ -5765,17 +5770,6 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!114 &1446021979 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7500888032425211397, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
-  m_PrefabInstance: {fileID: 1763715447}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1576149156
 GameObject:
   m_ObjectHideFlags: 0
@@ -6887,27 +6881,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: 260
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 1980.87
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 130
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -990.435
       objectReference: {fileID: 0}
     - target: {fileID: 6985314863236865860, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_Pivot.x

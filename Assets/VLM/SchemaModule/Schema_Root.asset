@@ -10,28 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a7d646ac05c6c5a6ad5de4c6e3be9de, type: 3}
-  m_Name: ObstacleItem
+  m_Name: Schema_Root
   m_EditorClassIdentifier: 
-  moduleName: ObstacleItem
+  moduleName: Schema_Root
   properties:
-  - name: "\u7A2E\u5225"
-    type: 0
+  - name: "\u969C\u5BB3\u7269\u60C5\u5831"
+    type: 4
     enumOptions: 
-    schemaReference: {fileID: 0}
+    schemaReference: {fileID: 11400000, guid: 0cb59e0b8e9e7fa4a984e97e465be132, type: 2}
     isOptional: 0
-  - name: "\u4F4D\u7F6E"
+  - name: "\u5DE6\u53F3\u6BD4\u8F03\uFF08\u524D\u65B9\uFF09"
     type: 1
-    enumOptions: "\u524D\u65B9, \u5F8C\u65B9, \u5DE6\u5074, \u53F3\u5074, \u5DE6\u524D\u65B9,
-      \u53F3\u524D\u65B9, \u5DE6\u5F8C\u65B9, \u53F3\u5F8C\u65B9 "
+    enumOptions: "\u5DE6, \u53F3, \u4E2D\u592E, \u306A\u3057 "
     schemaReference: {fileID: 0}
     isOptional: 0
-  - name: "\u8DDD\u96E2"
+  - name: "\u63A8\u5968\u884C\u52D5"
     type: 1
-    enumOptions: "\u8FD1\u8DDD\u96E2, \u4E2D\u8DDD\u96E2, \u9060\u8DDD\u96E2 "
+    enumOptions: "\u76F4\u9032, \u5DE6\u3078\u56DE\u907F, \u53F3\u3078\u56DE\u907F,
+      \u505C\u6B62 "
     schemaReference: {fileID: 0}
     isOptional: 0
-  - name: "\u88DC\u8DB3"
-    type: 0
-    enumOptions: 
-    schemaReference: {fileID: 0}
-    isOptional: 1

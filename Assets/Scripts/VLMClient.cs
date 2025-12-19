@@ -25,7 +25,7 @@ public class VLMClient : MonoBehaviour
     // =================================================================
     [Header("Camera Setup")]
     public Camera frontCamera;
-    public Camera backCamera; 
+    public Camera backCamera;
     public Camera topCamera;
     public Camera leftCamera;
     public Camera rightCamera;
@@ -33,7 +33,7 @@ public class VLMClient : MonoBehaviour
     [SerializeField] private TMP_Text VLMText;
 
     [Header("UI Settings")]
-    [SerializeField] private TMP_Text configText; 
+    [SerializeField] private TMP_Text configText;
 
     // =================================================================
     // 3. 通信・撮影設定
@@ -44,10 +44,10 @@ public class VLMClient : MonoBehaviour
     [Header("Capture Settings")]
     [Tooltip("VLMに送る画像の幅 (推奨: 512)")]
     public int captureWidth = 512;
-    
+
     [Tooltip("VLMに送る画像の高さ (推奨: 512)")]
     public int captureHeight = 512;
-    
+
     [Header("Input")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
 
@@ -55,13 +55,13 @@ public class VLMClient : MonoBehaviour
     // 4. コ・パイロット設定
     // =================================================================
     [Header("Co-pilot / Auto Warning Settings")]
-    public bool enableAutoWarning = true; 
-    public float autoWarningDistance = 2.0f; 
-    public float warningCooldown = 5.0f; 
+    public bool enableAutoWarning = true;
+    public float autoWarningDistance = 2.0f;
+    public float warningCooldown = 5.0f;
 
-    private float lastWarningTime = -100f; 
-    private bool isProcessing = false;     
-    
+    private float lastWarningTime = -100f;
+    private bool isProcessing = false;
+
     [Header("Image Save Settings")]
     public string saveFolderName = "Images";
 
@@ -105,7 +105,7 @@ public class VLMClient : MonoBehaviour
     }
 
     // =================================================================
-    // AI通信のメイン処理
+    // AI通信のメイン処理 (Multi-Message対応版)
     // =================================================================
     private IEnumerator SendRequestToOllama()
     {
@@ -115,102 +115,116 @@ public class VLMClient : MonoBehaviour
 
         // モジュールログ
         StringBuilder moduleLog = new StringBuilder();
-        if (config.activeModules != null) foreach(var m in config.activeModules) if(m) moduleLog.AppendLine(m.moduleName);
+        if (config.activeModules != null) foreach (var m in config.activeModules) if (m) moduleLog.AppendLine(m.moduleName);
         Debug.Log($"Active Modules:\n{moduleLog}");
 
         if (carController != null) carController.SetRaycastLineVisibility(false);
-        yield return null; 
+        yield return null;
 
-        // 複数画像をリストで取得
+        // 1. 画像の撮影と収集
         List<Texture2D> capturedTextures = new List<Texture2D>();
+        
+        // 順番記録用ログ
+        StringBuilder orderLog = new StringBuilder();
+        orderLog.AppendLine("【Image Order Check】(AIへの送信順)");
 
+        // カメラ撮影（順番は変えないこと！）
         switch (config.viewMode)
         {
             case VLMConfig.ViewMode.FPS:
-                if (frontCamera) capturedTextures.Add(CaptureCameraView(frontCamera));
+                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
                 break;
-
             case VLMConfig.ViewMode.MultiView:
-                if (frontCamera) capturedTextures.Add(CaptureCameraView(frontCamera));
-                if (topCamera) capturedTextures.Add(CaptureCameraView(topCamera));
+                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
+                if (topCamera)   { capturedTextures.Add(CaptureCameraView(topCamera));   orderLog.AppendLine("[1] Top (俯瞰)"); }
                 break;
-
             case VLMConfig.ViewMode.SurroundView:
-                // 順番: 1.前方, 2.後方, 3.左, 4.右
-                if (frontCamera) capturedTextures.Add(CaptureCameraView(frontCamera));
-                if (backCamera) capturedTextures.Add(CaptureCameraView(backCamera));
-                if (leftCamera) capturedTextures.Add(CaptureCameraView(leftCamera));
-                if (rightCamera) capturedTextures.Add(CaptureCameraView(rightCamera));
+                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
+                if (backCamera)  { capturedTextures.Add(CaptureCameraView(backCamera));  orderLog.AppendLine("[1] Back (後方)"); }
+                if (leftCamera)  { capturedTextures.Add(CaptureCameraView(leftCamera));  orderLog.AppendLine("[2] Left (左側)"); }
+                if (rightCamera) { capturedTextures.Add(CaptureCameraView(rightCamera)); orderLog.AppendLine("[3] Right (右側)"); }
                 break;
         }
+        Debug.Log(orderLog.ToString());
 
         if (capturedTextures.Count == 0)
         {
-             Debug.LogError("撮影失敗: カメラが設定されていないか、画像が取得できませんでした。");
-             isProcessing = false;
-             yield break;
+            Debug.LogError("撮影失敗");
+            isProcessing = false;
+            yield break;
         }
 
         if (carController != null) carController.SetRaycastLineVisibility(true);
 
-        // 全画像をBase64リストに変換
+        // 2. Base64変換
         List<string> base64Images = new List<string>();
         for (int i = 0; i < capturedTextures.Count; i++)
         {
             byte[] bytes = capturedTextures[i].EncodeToJPG();
-            SaveImageToFile(bytes, i); 
+            SaveImageToFile(bytes, i);
             base64Images.Add(System.Convert.ToBase64String(bytes));
             Destroy(capturedTextures[i]);
         }
 
-        // --- JSON構築 ---
-        string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
-        OllamaOptions options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
-        string optionsJson = JsonUtility.ToJson(options);
+        // =========================================================
+        // 3. JSONメッセージの構築 (ここが最大の変更点)
+        // =========================================================
+        
+        StringBuilder messagesJson = new StringBuilder();
+        messagesJson.Append("["); // 配列開始
 
-        string imagesJsonArray = "";
-        if (base64Images.Count > 0)
+        // (A) 画像メッセージを順番に追加
+        for (int i = 0; i < base64Images.Count; i++)
         {
-            imagesJsonArray = "\"" + string.Join("\",\"", base64Images) + "\"";
+            // インデックスに応じた「意味（ラベル）」を取得
+            string label = GetViewLabel(config.viewMode, i);
+            string imageBase64 = base64Images[i];
+
+            // 1メッセージを作る { "role": "user", "content": "ラベル", "images": ["Base64"] }
+            // 画像データ部分だけ巨大なので、ここは文字列操作で慎重に結合
+            messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{label}"", ""images"": [""{imageBase64}""] }},");
         }
 
+        // (B) 最後にプロンプト（指示）だけのメッセージを追加
+        // プロンプト内の改行やダブルクォートをエスケープ
+        string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+        
+        // 最後の指示メッセージ（画像なし）
+        messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{safePrompt}"" }}");
+
+        messagesJson.Append("]"); // 配列終了
+
+        // =========================================================
+        // 4. リクエストボディの作成
+        // =========================================================
+        
+        OllamaOptions options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
+        string optionsJson = JsonUtility.ToJson(options);
+        
         string jsonBody = "";
         bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
-        
-        string messagesPart = $@"
-        [
-            {{
-                ""role"": ""user"",
-                ""content"": ""{safePrompt}"",
-                ""images"": [{imagesJsonArray}] 
-            }}
-        ]";
 
         if (isFreeForm)
         {
-            jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesPart} }}";
+            // Formatなし
+            jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesJson.ToString()} }}";
         }
         else
         {
+            // Format (GBNF) あり
             string schemaJson = BuildDynamicSchemaJson(config.activeModules);
-            jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesPart}, ""format"": {schemaJson} }}";
+            jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesJson.ToString()}, ""format"": {schemaJson} }}";
         }
 
-        // ログ出力 (画像データ省略)
+        // ログ出力（画像データは省略して表示）
         if (!string.IsNullOrEmpty(jsonBody))
         {
             string debugJson = jsonBody;
-            if (base64Images != null)
-            {
-                foreach (var b64 in base64Images)
-                {
-                    if (!string.IsNullOrEmpty(b64)) debugJson = debugJson.Replace(b64, "<IMAGE_DATA_OMITTED>");
-                }
-            }
+            foreach(var b64 in base64Images) debugJson = debugJson.Replace(b64, "<IMAGE_DATA_OMITTED>");
             Debug.Log($"【Request Debug】Config: {config.name}\nSending JSON: {debugJson}");
         }
 
-        // --- 通信 ---
+        // 5. 送信
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
         {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
@@ -229,13 +243,12 @@ public class VLMClient : MonoBehaviour
             {
                 string rawJson = request.downloadHandler.text;
                 
-                // トークン使用量チェック
+                // トークンチェック
                 OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
                 int used = responseData.prompt_eval_count;
                 int limit = config.contextSize;
                 string tokenLog = $"【Token Usage】 Used: {used} / Limit: {limit}";
-                if (used >= limit) Debug.LogError($"{tokenLog} ⚠️不足!");
-                else Debug.Log($"{tokenLog} ✅OK");
+                if (used >= limit) Debug.LogError($"{tokenLog} ⚠️不足!"); else Debug.Log($"{tokenLog} ✅OK");
 
                 string contentJson = ExtractContent(rawJson);
                 Debug.Log("AI Response: " + contentJson);
@@ -247,9 +260,43 @@ public class VLMClient : MonoBehaviour
     }
 
     // =================================================================
+    // ヘルパー: カメラごとのラベル生成
+    // =================================================================
+    private string GetViewLabel(VLMConfig.ViewMode mode, int index)
+    {
+        // SurroundView (4枚) の場合
+        if (mode == VLMConfig.ViewMode.SurroundView)
+        {
+            switch (index)
+            {
+                case 0: return "これは車両前方。以後この対応を保持。";
+                case 1: return "これは車両後方。以後この対応を保持。";
+                case 2: return "これは車両左側。以後この対応を保持。";
+                case 3: return "これは車両右側。以後この対応を保持。";
+            }
+        }
+        // MultiView (2枚) の場合
+        else if (mode == VLMConfig.ViewMode.MultiView)
+        {
+            switch (index)
+            {
+                case 0: return "これは車両前方。";
+                case 1: return "これは車両俯瞰(上から)。";
+            }
+        }
+        // FPS (1枚) の場合
+        else
+        {
+            return "これは車両前方の映像です。";
+        }
+
+        return "画像情報";
+    }
+
+    // =================================================================
     // ヘルパー: JSON Schemaの動的生成 (Description削除)
     // =================================================================
-// =================================================================
+    // =================================================================
     // ヘルパー: JSON Schemaの動的生成 (再帰対応版)
     // =================================================================
     private string BuildDynamicSchemaJson(List<VLMSchemaModule> modules)
@@ -265,9 +312,17 @@ public class VLMClient : MonoBehaviour
             if (m == null) continue;
             // モジュールごとのプロパティ定義を取得して結合
             props.Add(GeneratePropertiesJson(m));
-            
+
             // ルートレベルの必須項目リストを作成
-            foreach (var p in m.properties) req.Add($"\"{p.name}\"");
+            foreach (var p in m.properties)
+            {
+                // ▼▼▼ 修正: Optionalでなければ必須リストに追加 ▼▼▼
+                if (!p.isOptional)
+                {
+                    req.Add($"\"{p.name}\"");
+                }
+                // ▲▲▲ 修正ここまで ▲▲▲
+            }
         }
 
         sb.Append(string.Join(",", props));
@@ -343,7 +398,15 @@ public class VLMClient : MonoBehaviour
     private string GetRequiredListJson(VLMSchemaModule module)
     {
         List<string> req = new List<string>();
-        foreach (var p in module.properties) req.Add($"\"{p.name}\"");
+        foreach (var p in module.properties)
+        {
+            // ▼▼▼ 修正: Optionalでなければ必須リストに追加 ▼▼▼
+            if (!p.isOptional)
+            {
+                req.Add($"\"{p.name}\"");
+            }
+            // ▲▲▲ 修正ここまで ▲▲▲
+        }
         return "[" + string.Join(",", req) + "]";
     }
 
@@ -353,12 +416,12 @@ public class VLMClient : MonoBehaviour
 
     private void SaveImageToFile(byte[] bytes, int index)
     {
-        #if UNITY_EDITOR
+#if UNITY_EDITOR
         string folderPath = Path.Combine(Application.dataPath, saveFolderName);
         if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
         string fileName = $"capture_{System.DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{index}.jpg";
         File.WriteAllBytes(Path.Combine(folderPath, fileName), bytes);
-        #endif
+#endif
     }
 
     private Texture2D CaptureCameraView(Camera camera)
@@ -378,49 +441,207 @@ public class VLMClient : MonoBehaviour
         return screenshot;
     }
 
+    // =================================================================
+    // ヘルパー: 結果の表示（装飾なし版）
+    // =================================================================
     private void DisplayDynamicResult(string jsonResponse)
     {
         StringBuilder sb = new StringBuilder();
+
         foreach (var module in config.activeModules)
         {
             if (module == null) continue;
-            sb.AppendLine($"<b>[{module.moduleName}]</b>");
-            foreach (var prop in module.properties)
-            {
-                string pattern = $"\"{prop.name}\"\\s*:\\s*(\\[.*?\\]|\".*?\")";
-                Match match = Regex.Match(jsonResponse, pattern, RegexOptions.Singleline);
-                if (match.Success)
-                {
-                    string val = match.Groups[1].Value.Trim();
-                    if (val.StartsWith("[")) val = val.Replace("[", "").Replace("]", "").Replace("\"", "");
-                    else val = val.Trim('"');
-                    val = val.Replace("**", ""); 
-                    if (string.IsNullOrWhiteSpace(val)) val = "None";
 
-                    string d = val; string l = val.ToLower();
-                    if (l.Contains("high") || l.Contains("danger") || l == "true" || l.Contains("critical")) d = $"<color=red>{val}</color>";
-                    else if (l.Contains("safe") || l == "false" || l.Contains("clear") || l == "none") d = $"<color=green>{val}</color>";
-                    else if (l.Contains("caution") || l.Contains("warning")) d = $"<color=yellow>{val}</color>";
-                    sb.AppendLine($"- {prop.name}: {d}");
-                }
-                else sb.AppendLine($"- {prop.name}: <color=grey>(Not found)</color>");
-            }
+            sb.AppendLine($"[{module.moduleName}]");
+            FormatSchemaRecursive(sb, module, jsonResponse, 0);
             sb.AppendLine();
         }
+
         if (VLMText != null) VLMText.text = sb.ToString();
+    }
+
+    // 再帰的にスキーマとJSONを照らし合わせて表示を作る（装飾なし版）
+    private void FormatSchemaRecursive(StringBuilder sb, VLMSchemaModule module, string jsonContext, int indentLevel)
+    {
+        string indent = new string(' ', indentLevel * 2);
+
+        foreach (var prop in module.properties)
+        {
+            string rawValue = ExtractJsonValue(jsonContext, prop.name);
+
+            if (string.IsNullOrEmpty(rawValue) || rawValue == "null")
+            {
+                if (!prop.isOptional)
+                {
+                    sb.AppendLine($"{indent}- {prop.name}: (Not found)");
+                }
+                continue;
+            }
+
+            if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Object)
+            {
+                sb.AppendLine($"{indent}- {prop.name}:");
+                if (prop.schemaReference != null)
+                {
+                    FormatSchemaRecursive(sb, prop.schemaReference, rawValue, indentLevel + 1);
+                }
+            }
+            else if (prop.type == VLMSchemaModule.SchemaPropertyDefinition.PropertyType.Array)
+            {
+                sb.AppendLine($"{indent}- {prop.name}:");
+
+                string arrayContent = rawValue.Trim();
+                if (arrayContent.StartsWith("[") && arrayContent.EndsWith("]"))
+                {
+                    arrayContent = arrayContent.Substring(1, arrayContent.Length - 2);
+                }
+
+                List<string> items = SplitArrayItems(arrayContent);
+
+                for (int i = 0; i < items.Count; i++)
+                {
+                    sb.AppendLine($"{indent}  [{i}]:");
+                    if (prop.schemaReference != null)
+                    {
+                        FormatSchemaRecursive(sb, prop.schemaReference, items[i], indentLevel + 2);
+                    }
+                    else
+                    {
+                        sb.AppendLine($"{indent}    {FormatValueColor(items[i])}");
+                    }
+                }
+            }
+            else
+            {
+                string displayVal = FormatValueColor(rawValue); // ここは既に色付け無し
+                sb.AppendLine($"{indent}- {prop.name}: {displayVal}");
+            }
+        }
+    }
+
+    // 値を整形するヘルパー (色付けなし版)
+    private string FormatValueColor(string val)
+    {
+        // クォートやカンマ、改行などを除去して綺麗にする
+        val = val.Trim(' ', '"', ',', '\n', '\r');
+
+        // 空なら "None" を返す
+        if (string.IsNullOrWhiteSpace(val)) return "None";
+
+        // 色タグを付けずにそのまま返す
+        return val;
+    }
+
+    // =================================================================
+    // JSON解析用パーサー (修正版)
+    // =================================================================
+    private string ExtractJsonValue(string json, string key)
+    {
+        // キーを探す ("key": )
+        string pattern = $"\"{key}\"\\s*:\\s*";
+        Match match = Regex.Match(json, pattern);
+        if (!match.Success) return null;
+
+        int startIndex = match.Index + match.Length;
+        int depth = 0;
+        bool inQuote = false;
+        StringBuilder result = new StringBuilder();
+
+        for (int i = startIndex; i < json.Length; i++)
+        {
+            char c = json[i];
+
+            // 引用符の中なら無視して進む
+            if (c == '\"' && (i == 0 || json[i - 1] != '\\'))
+            {
+                inQuote = !inQuote;
+                result.Append(c);
+                continue;
+            }
+
+            if (!inQuote)
+            {
+                if (c == '{' || c == '[')
+                {
+                    depth++;
+                }
+                else if (c == '}' || c == ']')
+                {
+                    depth--;
+                    // ▼▼▼ 修正: 構造を閉じるカッコだった場合、これを含めてから終了する ▼▼▼
+                    if (depth == 0)
+                    {
+                        result.Append(c);
+                        break;
+                    }
+                    // ▲▲▲ 修正ここまで ▲▲▲
+                }
+
+                // 深さが0（構造の外）で、区切り文字（カンマや親の閉じカッコ）が来たら終了
+                if (depth == 0 && (c == ',' || c == '}' || c == ']'))
+                {
+                    break;
+                }
+
+                // 異常系: 親の閉じカッコで行き過ぎた場合
+                if (depth < 0) break;
+            }
+
+            result.Append(c);
+        }
+
+        return result.ToString().Trim();
+    }
+
+    // 配列の中身 "{...}, {...}" を個別の要素に分割する
+    private List<string> SplitArrayItems(string arrayContent)
+    {
+        List<string> items = new List<string>();
+        int depth = 0;
+        bool inQuote = false;
+        StringBuilder currentItem = new StringBuilder();
+
+        for (int i = 0; i < arrayContent.Length; i++)
+        {
+            char c = arrayContent[i];
+
+            if (c == '\"' && (i == 0 || arrayContent[i - 1] != '\\')) inQuote = !inQuote;
+
+            if (!inQuote)
+            {
+                if (c == '{' || c == '[') depth++;
+                if (c == '}' || c == ']') depth--;
+
+                // 深さ0のカンマは区切り文字
+                if (depth == 0 && c == ',')
+                {
+                    if (currentItem.Length > 0) items.Add(currentItem.ToString().Trim());
+                    currentItem.Clear();
+                    continue;
+                }
+            }
+            currentItem.Append(c);
+        }
+        if (currentItem.Length > 0) items.Add(currentItem.ToString().Trim());
+
+        return items;
     }
 
     private string ExtractContent(string fullJson)
     {
-        try {
+        try
+        {
             string content = JsonUtility.FromJson<OllamaResponse>(fullJson).message.content;
             if (!string.IsNullOrEmpty(content)) content = content.Replace("**", "");
             return content;
-        } catch { return fullJson; }
+        }
+        catch { return fullJson; }
     }
 
-    [System.Serializable] public class OllamaResponse { 
-        public ResponseMessage message; 
+    [System.Serializable]
+    public class OllamaResponse
+    {
+        public ResponseMessage message;
         public int prompt_eval_count;
         public int eval_count;
     }

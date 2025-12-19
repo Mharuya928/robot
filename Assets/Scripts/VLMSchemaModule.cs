@@ -24,6 +24,11 @@ public class VLMSchemaModule : ScriptableObject
         public VLMSchemaModule schemaReference; 
         // ▲▲▲ 追加ここまで ▲▲▲
 
+        // ▼▼▼ 追加: 任意項目にするためのフラグ ▼▼▼
+        [Tooltip("チェックを入れると、この項目は「必須(required)」から除外されます")]
+        public bool isOptional = false; 
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         public enum PropertyType
         {
             String,

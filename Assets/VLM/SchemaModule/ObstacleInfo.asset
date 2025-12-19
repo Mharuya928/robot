@@ -10,19 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a7d646ac05c6c5a6ad5de4c6e3be9de, type: 3}
-  m_Name: ObstacleAnalysis_2
+  m_Name: ObstacleInfo
   m_EditorClassIdentifier: 
-  moduleName: ObstacleAnalysis
+  moduleName: ObstacleInfo
   properties:
-  - name: obstacle_info
-    type: 4
+  - name: "\u969C\u5BB3\u7269\u4E00\u89A7"
+    type: 3
     enumOptions: 
-    schemaReference: {fileID: 0}
-  - name: open_space_side
-    type: 1
-    enumOptions: Left,Right,Center,None
-    schemaReference: {fileID: 0}
-  - name: recommended_action
-    type: 1
-    enumOptions: Go_Straight, Avoid_to_Left, Avoid_to_Right, Stop
-    schemaReference: {fileID: 0}
+    schemaReference: {fileID: 11400000, guid: b903d425f475490dab9409b2453b81d4, type: 2}
