@@ -217,10 +217,44 @@ public class VLMClient : MonoBehaviour
         }
 
         // ログ出力（画像データは省略して表示）
+// ログ出力（画像データをカメラ名に置き換えて表示）
         if (!string.IsNullOrEmpty(jsonBody))
         {
             string debugJson = jsonBody;
-            foreach(var b64 in base64Images) debugJson = debugJson.Replace(b64, "<IMAGE_DATA_OMITTED>");
+            
+            // リストのインデックスを使って、各画像を対応するカメラ名のタグに置換する
+            for (int i = 0; i < base64Images.Count; i++)
+            {
+                string camLabel = "Unknown";
+
+                // 現在のViewModeとインデックス(i)からカメラ名を判定
+                if (config.viewMode == VLMConfig.ViewMode.SurroundView)
+                {
+                    switch (i)
+                    {
+                        case 0: camLabel = "Front(前方)"; break;
+                        case 1: camLabel = "Back(後方)"; break;
+                        case 2: camLabel = "Left(左側)"; break;
+                        case 3: camLabel = "Right(右側)"; break;
+                    }
+                }
+                else if (config.viewMode == VLMConfig.ViewMode.MultiView)
+                {
+                    switch (i)
+                    {
+                        case 0: camLabel = "Front(前方)"; break;
+                        case 1: camLabel = "Top(俯瞰)"; break;
+                    }
+                }
+                else // FPS
+                {
+                    camLabel = "Front(前方)";
+                }
+
+                // Base64文字列を、分かりやすいタグに置換
+                debugJson = debugJson.Replace(base64Images[i], $"<IMAGE: {camLabel}>");
+            }
+
             Debug.Log($"【Request Debug】Config: {config.name}\nSending JSON: {debugJson}");
         }
 
