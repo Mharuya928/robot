@@ -137,17 +137,29 @@ public class CarController : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        // ▼▼▼ 追加: ゴールなら無視する ▼▼▼
+        if (other.CompareTag("Goal")) return;
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         Debug.Log("Trigger Enter: " + other.name);
         if(triggerText) triggerText.text = $"Trigger: DANGER (object inside)";
     }
 
     void OnTriggerStay(Collider other)
     {
+        // ▼▼▼ 追加: ゴールなら無視する ▼▼▼
+        if (other.CompareTag("Goal")) return;
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         if(triggerText) triggerText.text = $"Trigger: DANGER (object inside)";
     }
 
     void OnTriggerExit(Collider other)
     {
+        // ▼▼▼ 追加: ゴールなら無視する ▼▼▼
+        if (other.CompareTag("Goal")) return;
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         Debug.Log("Trigger Exit: " + other.name);
         if(triggerText) triggerText.text = "Trigger: No target.";
     }
