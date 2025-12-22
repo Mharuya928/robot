@@ -8078,8 +8078,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6449154295703168796, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+      propertyPath: targetCar
+      value: 
+      objectReference: {fileID: 2917880205400589745}
     - target: {fileID: 6985314863236865860, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -8160,6 +8164,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7563554582536684295, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 5dab69b9c030d96e9a8ac664a36059b0, type: 3}
     - target: {fileID: 9078631735345272658, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -12753,7 +12761,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  config: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
+  selectConfig: 0
+  configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
+  config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   carController: {fileID: 2917880205400589745}
   frontCamera: {fileID: 8721246842223887218}
   backCamera: {fileID: 2028950494433199523}

@@ -3753,7 +3753,7 @@ GameObject:
   - component: {fileID: 847071887}
   m_Layer: 2
   m_Name: Goal
-  m_TagString: Untagged
+  m_TagString: Goal
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4235,6 +4235,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  selectConfig: 0
+  configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
   config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   carController: {fileID: 1064351411}
   frontCamera: {fileID: 788334834}
@@ -6881,28 +6884,32 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 260
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 1980.87
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 130
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -990.435
+      value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6449154295703168796, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+      propertyPath: targetCar
+      value: 
+      objectReference: {fileID: 1064351411}
     - target: {fileID: 6985314863236865860, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_Pivot.x
       value: 0

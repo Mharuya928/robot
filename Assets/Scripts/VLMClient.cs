@@ -14,8 +14,51 @@ public class VLMClient : MonoBehaviour
     // =================================================================
     // 1. 設定・依存関係
     // =================================================================
-    [Header("Config")]
-    public VLMConfig config;
+    // ▼▼▼ 変更: 切り替え機能を追加 ▼▼▼
+    [Header("Config Selection")]
+    [Tooltip("使用するコンフィグを選択してください")]
+    public ConfigType selectConfig = ConfigType.ConfigA;
+
+    [Tooltip("Aパターンの設定ファイル")]
+    public VLMConfig configA;
+
+    [Tooltip("Bパターンの設定ファイル")]
+    public VLMConfig configB;
+
+    [Header("Active Config (Auto Assigned)")]
+    [Tooltip("現在アクティブになっている設定（自動でセットされます）")]
+    public VLMConfig config; // ← 既存の変数はそのまま残し、中身を差し替えます
+
+    public enum ConfigType
+    {
+        ConfigA,
+        ConfigB
+    }
+
+    // エディタ上で値を変更した瞬間に反映させる
+    void OnValidate()
+    {
+        ApplyConfigSelection();
+    }
+
+    // ゲーム開始時にも確実に適用する
+    void Awake()
+    {
+        ApplyConfigSelection();
+    }
+
+    private void ApplyConfigSelection()
+    {
+        if (selectConfig == ConfigType.ConfigA)
+        {
+            config = configA;
+        }
+        else
+        {
+            config = configB;
+        }
+    }
+    // ▲▲▲ 変更ここまで ▲▲▲
 
     [Header("Dependencies")]
     public CarController carController;
@@ -50,6 +93,12 @@ public class VLMClient : MonoBehaviour
 
     [Header("Input")]
     public KeyCode vlmActivationKey = KeyCode.Tab;
+
+    static readonly Color32 FRONT = new Color32(255, 0, 0, 255); // 赤
+    static readonly Color32 BACK = new Color32(0, 0, 255, 255); // 青
+    static readonly Color32 LEFT = new Color32(0, 255, 0, 255); // 緑
+    static readonly Color32 RIGHT = new Color32(255, 255, 0, 255); // 黄
+
 
     // =================================================================
     // 4. コ・パイロット設定
@@ -123,7 +172,7 @@ public class VLMClient : MonoBehaviour
 
         // 1. 画像の撮影と収集
         List<Texture2D> capturedTextures = new List<Texture2D>();
-        
+
         // 順番記録用ログ
         StringBuilder orderLog = new StringBuilder();
         orderLog.AppendLine("【Image Order Check】(AIへの送信順)");
@@ -136,13 +185,37 @@ public class VLMClient : MonoBehaviour
                 break;
             case VLMConfig.ViewMode.MultiView:
                 if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
-                if (topCamera)   { capturedTextures.Add(CaptureCameraView(topCamera));   orderLog.AppendLine("[1] Top (俯瞰)"); }
+                if (topCamera) { capturedTextures.Add(CaptureCameraView(topCamera)); orderLog.AppendLine("[1] Top (俯瞰)"); }
                 break;
             case VLMConfig.ViewMode.SurroundView:
-                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
-                if (backCamera)  { capturedTextures.Add(CaptureCameraView(backCamera));  orderLog.AppendLine("[1] Back (後方)"); }
-                if (leftCamera)  { capturedTextures.Add(CaptureCameraView(leftCamera));  orderLog.AppendLine("[2] Left (左側)"); }
-                if (rightCamera) { capturedTextures.Add(CaptureCameraView(rightCamera)); orderLog.AppendLine("[3] Right (右側)"); }
+                if (frontCamera)
+                {
+                    Texture2D t = CaptureCameraView(frontCamera);
+                    AddColorIndicator(t, FRONT); // 前方 = 赤
+                    capturedTextures.Add(t);
+                    orderLog.AppendLine("[0] Front (Red/赤)");
+                }
+                if (backCamera)
+                {
+                    Texture2D t = CaptureCameraView(backCamera);
+                    AddColorIndicator(t, BACK); // 後方 = 青
+                    capturedTextures.Add(t);
+                    orderLog.AppendLine("[1] Back (Blue/青)");
+                }
+                if (leftCamera)
+                {
+                    Texture2D t = CaptureCameraView(leftCamera);
+                    AddColorIndicator(t, LEFT); // 左 = 緑
+                    capturedTextures.Add(t);
+                    orderLog.AppendLine("[2] Left (Green/緑)");
+                }
+                if (rightCamera)
+                {
+                    Texture2D t = CaptureCameraView(rightCamera);
+                    AddColorIndicator(t, RIGHT); // 右 = 黄
+                    capturedTextures.Add(t);
+                    orderLog.AppendLine("[3] Right (Yellow/黄)");
+                }
                 break;
         }
         Debug.Log(orderLog.ToString());
@@ -169,7 +242,7 @@ public class VLMClient : MonoBehaviour
         // =========================================================
         // 3. JSONメッセージの構築 (ここが最大の変更点)
         // =========================================================
-        
+
         StringBuilder messagesJson = new StringBuilder();
         messagesJson.Append("["); // 配列開始
 
@@ -188,7 +261,7 @@ public class VLMClient : MonoBehaviour
         // (B) 最後にプロンプト（指示）だけのメッセージを追加
         // プロンプト内の改行やダブルクォートをエスケープ
         string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
-        
+
         // 最後の指示メッセージ（画像なし）
         messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{safePrompt}"" }}");
 
@@ -197,10 +270,10 @@ public class VLMClient : MonoBehaviour
         // =========================================================
         // 4. リクエストボディの作成
         // =========================================================
-        
+
         OllamaOptions options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
         string optionsJson = JsonUtility.ToJson(options);
-        
+
         string jsonBody = "";
         bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
 
@@ -217,11 +290,11 @@ public class VLMClient : MonoBehaviour
         }
 
         // ログ出力（画像データは省略して表示）
-// ログ出力（画像データをカメラ名に置き換えて表示）
+        // ログ出力（画像データをカメラ名に置き換えて表示）
         if (!string.IsNullOrEmpty(jsonBody))
         {
             string debugJson = jsonBody;
-            
+
             // リストのインデックスを使って、各画像を対応するカメラ名のタグに置換する
             for (int i = 0; i < base64Images.Count; i++)
             {
@@ -276,7 +349,7 @@ public class VLMClient : MonoBehaviour
             else
             {
                 string rawJson = request.downloadHandler.text;
-                
+
                 // トークンチェック
                 OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
                 int used = responseData.prompt_eval_count;
@@ -458,6 +531,17 @@ public class VLMClient : MonoBehaviour
 #endif
     }
 
+    // 画像の上端に色帯を追加するヘルパー
+    private void AddColorIndicator(Texture2D tex, Color color, int thickness = 20)
+    {
+        Color[] colors = new Color[tex.width * thickness];
+        for (int i = 0; i < colors.Length; i++) colors[i] = color;
+
+        // 上端に線を引く (tex.height - thickness から tex.height まで)
+        tex.SetPixels(0, tex.height - thickness, tex.width, thickness, colors);
+        tex.Apply();
+    }
+
     private Texture2D CaptureCameraView(Camera camera)
     {
         int width = captureWidth;
@@ -491,10 +575,17 @@ public class VLMClient : MonoBehaviour
             sb.AppendLine();
         }
 
-        if (VLMText != null) VLMText.text = sb.ToString();
+        // 文字列として確定させる
+        string finalResult = sb.ToString();
+
+        // ▼▼▼ 追加: 整形後の結果をコンソールにも出す ▼▼▼
+        Debug.Log("【AI Formatted Output】\n" + finalResult);
+        // ▲▲▲ 追加ここまで ▲▲▲
+
+        if (VLMText != null) VLMText.text = finalResult;
     }
 
-    // 再帰的にスキーマとJSONを照らし合わせて表示を作る（装飾なし版）
+    // 再帰的にスキーマとJSONを照らし合わせて表示を作る（インデックス削除版）
     private void FormatSchemaRecursive(StringBuilder sb, VLMSchemaModule module, string jsonContext, int indentLevel)
     {
         string indent = new string(' ', indentLevel * 2);
@@ -534,20 +625,29 @@ public class VLMClient : MonoBehaviour
 
                 for (int i = 0; i < items.Count; i++)
                 {
-                    sb.AppendLine($"{indent}  [{i}]:");
+                    // ▼▼▼ 変更: [0]: を削除し、区切り線に変更 ▼▼▼
+
+                    // 2つ目以降のアイテムの場合、区切り線を入れる
+                    if (i > 0)
+                    {
+                        sb.AppendLine($"{indent}  ---");
+                    }
+
                     if (prop.schemaReference != null)
                     {
-                        FormatSchemaRecursive(sb, prop.schemaReference, items[i], indentLevel + 2);
+                        // インデントを +2 から +1 に減らしてスッキリさせる
+                        FormatSchemaRecursive(sb, prop.schemaReference, items[i], indentLevel + 1);
                     }
                     else
                     {
-                        sb.AppendLine($"{indent}    {FormatValueColor(items[i])}");
+                        sb.AppendLine($"{indent}  {FormatValueColor(items[i])}");
                     }
+                    // ▲▲▲ 変更ここまで ▲▲▲
                 }
             }
             else
             {
-                string displayVal = FormatValueColor(rawValue); // ここは既に色付け無し
+                string displayVal = FormatValueColor(rawValue);
                 sb.AppendLine($"{indent}- {prop.name}: {displayVal}");
             }
         }

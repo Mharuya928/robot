@@ -1,10 +1,15 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class CarStatusUI : MonoBehaviour
 {
     [Header("Target Car")]
     public CarController targetCar;
+
+    [Header("UI Containers")]
+    [Tooltip("車体とタイヤをまとめた親オブジェクト（回転用）")]
+    public RectTransform carContainer; 
 
     [Header("UI Elements (Auto Assigned)")]
     [SerializeField] private RectTransform wheelFL;
@@ -16,7 +21,10 @@ public class CarStatusUI : MonoBehaviour
 
     [Header("Visualization Settings")]
     public float steeringMultiplier = -1.0f;
-    public TMPro.TextMeshProUGUI speedText;
+    
+    [Header("Text Displays")]
+    public TextMeshProUGUI speedText;
+    // headingText は削除しました
 
     void Start()
     {
@@ -28,53 +36,58 @@ public class CarStatusUI : MonoBehaviour
 
         // --- UI要素の自動取得 ---
 
+        // コンテナの自動取得
+        if (carContainer == null)
+        {
+            Transform containerTr = transform.Find("CarVisContainer");
+            if (containerTr == null) containerTr = transform.Find("CarContainer");
+            
+            if (containerTr != null) carContainer = containerTr.GetComponent<RectTransform>();
+            else Debug.LogWarning("回転させるための 'CarVisContainer' が見つかりません。");
+        }
+
         // MotorSlider の取得
         Transform sliderTr = transform.Find("MotorSlider");
-        if (sliderTr != null)
-        {
-            motorSlider = sliderTr.GetComponent<Slider>();
-        }
-        else
-        {
-            Debug.LogWarning("'MotorSlider' が見つかりません。名前を確認してください。");
-        }
+        if (sliderTr != null) motorSlider = sliderTr.GetComponent<Slider>();
 
         // SpeedText の取得
         Transform speedTr = transform.Find("SpeedText");
-        if (speedTr != null)
-        {
-            speedText = speedTr.GetComponent<TMPro.TextMeshProUGUI>();
-        }
-        else
-        {
-            Debug.LogWarning("'SpeedText' が見つかりません。名前を確認してください。");
-        }
+        if (speedTr != null) speedText = speedTr.GetComponent<TextMeshProUGUI>();
 
-        // ▼▼▼ 修正: タイヤの取得パスを変更 ▼▼▼
-        Transform fl = transform.Find("Wheels/FrontLeft");
-        Transform fr = transform.Find("Wheels/FrontRight");
-        Transform rl = transform.Find("Wheels/BackLeft");
-        Transform rr = transform.Find("Wheels/BackRight");
+        // タイヤの取得 (コンテナ内検索対応)
+        wheelFL = FindWheel("FrontLeft");
+        wheelFR = FindWheel("FrontRight");
+        wheelRL = FindWheel("BackLeft");
+        wheelRR = FindWheel("BackRight");
+    }
 
-        // 取得できたかチェックして代入
-        if (fl != null) wheelFL = fl.GetComponent<RectTransform>();
-        else Debug.LogError("'Wheels/FrontLeft' が見つかりません。");
+    RectTransform FindWheel(string wheelName)
+    {
+        Transform t = transform.Find($"Wheels/{wheelName}");
+        if (t == null) t = transform.Find($"CarVisContainer/Wheels/{wheelName}");
+        if (t == null && carContainer != null) t = carContainer.Find($"Wheels/{wheelName}");
 
-        if (fr != null) wheelFR = fr.GetComponent<RectTransform>();
-        else Debug.LogError("'Wheels/FrontRight' が見つかりません。");
-
-        if (rl != null) wheelRL = rl.GetComponent<RectTransform>();
-        else Debug.LogError("'Wheels/BackLeft' が見つかりません。");
-
-        if (rr != null) wheelRR = rr.GetComponent<RectTransform>();
-        else Debug.LogError("'Wheels/BackRight' が見つかりません。");
+        if (t != null) return t.GetComponent<RectTransform>();
+        
+        Debug.LogError($"'{wheelName}' が見つかりません。階層を確認してください。");
+        return null;
     }
 
     void Update()
     {
         if (targetCar == null) return;
 
-        // 1. ステアリング同期
+        // 1. 車体全体の回転（オドメトリ反映）
+        if (carContainer != null)
+        {
+            // 車のY回転（0=北, 90=東）を取得
+            float carYaw = targetCar.transform.eulerAngles.y;
+            
+            // UIではZ軸回転。マイナスをかけて方向を合わせる
+            carContainer.localRotation = Quaternion.Euler(0, 0, -carYaw);
+        }
+
+        // 2. ステアリング同期
         float currentSteerAngle = 0f;
         if (targetCar.axleInfos.Count > 0)
         {
@@ -85,36 +98,21 @@ public class CarStatusUI : MonoBehaviour
         ApplyWheelRotation(wheelRL, 0);
         ApplyWheelRotation(wheelRR, 0);
 
-
-        // 2. アクセル/ブレーキをスライダーで表現
-        float motorInput = Input.GetAxis("Vertical"); // -1 (バック) 〜 1 (前進)
+        // 3. アクセル/ブレーキ表示
+        float motorInput = Input.GetAxis("Vertical");
         bool isBraking = Input.GetKey(KeyCode.Space);
 
         if (motorSlider != null)
         {
-            if (isBraking)
-            {
-                // ブレーキ時は -1 (一番下) にする
-                motorSlider.value = -1.0f;
-            }
-            else
-            {
-                // アクセル開度をそのまま適用
-                motorSlider.value = motorInput;
-            }
+            if (isBraking) motorSlider.value = -1.0f;
+            else motorSlider.value = motorInput;
         }
 
-        if (targetCar != null && speedText != null)
+        // 4. 速度表示
+        if (speedText != null)
         {
-            // 3. 現在の速度を表示
-            if (speedText != null)
-            {
-                // 速度ベクトル(m/s)の長さを取得
-                float speedMs = targetCar.GetComponent<Rigidbody>().velocity.magnitude;
-
-                // 小数点以下1桁で表示（必要なら 0 桁でも可）
-                speedText.text = $"{speedMs:F1} m/s";
-            }
+            float speedMs = targetCar.GetComponent<Rigidbody>().velocity.magnitude;
+            speedText.text = $"{speedMs:F1} m/s";
         }
     }
 
