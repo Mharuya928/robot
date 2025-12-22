@@ -3035,7 +3035,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1186017576}
-  - component: {fileID: 1186017575}
   - component: {fileID: 1186017577}
   m_Layer: 0
   m_Name: RandomManager
@@ -3044,20 +3043,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1186017575
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1186017574}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 16b3afa409eaba90abc29f2d1ee72e5f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stairsLeft: {fileID: 1412974482}
-  stairsRight: {fileID: 2120747110}
 --- !u!4 &1186017576
 Transform:
   m_ObjectHideFlags: 0
@@ -3082,11 +3067,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1186017574}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13f55a6d45ffca9459d45abdf16a9171, type: 3}
+  m_Script: {fileID: 11500000, guid: 379afb0f04ab4a95a81aa2349b68cb6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   carTransform: {fileID: 7630137965219993621}
-  laneWidth: 3
+  stairsLeft: {fileID: 1412974482}
+  stairsRight: {fileID: 2120747110}
+  laneWidth: 6
 --- !u!1 &1187608162
 GameObject:
   m_ObjectHideFlags: 3
@@ -8054,27 +8041,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 260
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 1980.87
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 130
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -990.435
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_IsActive
@@ -12761,10 +12748,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectConfig: 1
+  selectConfig: 0
   configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
-  config: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
+  config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   carController: {fileID: 2917880205400589745}
   frontCamera: {fileID: 8721246842223887218}
   backCamera: {fileID: 2028950494433199523}
