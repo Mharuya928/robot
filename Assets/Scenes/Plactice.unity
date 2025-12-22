@@ -42084,7 +42084,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  config: {fileID: 11400000, guid: 102ab4a880a432160a9c707b8a4a0201, type: 2}
+  selectConfig: 0
+  configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
+  config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   carController: {fileID: 1064351411}
   frontCamera: {fileID: 788334834}
   backCamera: {fileID: 644339129}

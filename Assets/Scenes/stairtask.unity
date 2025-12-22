@@ -8054,27 +8054,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: 260
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 1980.87
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 130
       objectReference: {fileID: 0}
     - target: {fileID: 4418354611326911880, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -990.435
       objectReference: {fileID: 0}
     - target: {fileID: 6151713346691918525, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
       propertyPath: m_IsActive
@@ -12761,10 +12761,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectConfig: 0
+  selectConfig: 1
   configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
-  config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  config: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
   carController: {fileID: 2917880205400589745}
   frontCamera: {fileID: 8721246842223887218}
   backCamera: {fileID: 2028950494433199523}
