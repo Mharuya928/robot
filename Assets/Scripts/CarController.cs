@@ -170,7 +170,26 @@ public class CarController : MonoBehaviour
     {
         float motor = maxMotorTorque * motorInput;
         float steering = maxSteeringAngle * steeringInput;
-        float brakeTorque = isBraking ? maxBrakeTorque : 0f;
+        
+        // ▼▼▼ 修正: エンジンブレーキの計算 ▼▼▼
+        float currentBrakeTorque = 0f;
+
+        if (isBraking)
+        {
+            // スペースキー（ブレーキ）を押している時
+            currentBrakeTorque = maxBrakeTorque;
+        }
+        else if (Mathf.Abs(motorInput) < 0.1f) // アクセル入力がほぼゼロの時
+        {
+            // エンジンブレーキ（例: 最大ブレーキの 20% くらい）
+            currentBrakeTorque = maxBrakeTorque * 0.2f; 
+        }
+        else
+        {
+            // 加速中はブレーキなし
+            currentBrakeTorque = 0f;
+        }
+        // ▲▲▲ 修正ここまで ▲▲▲
 
         foreach (AxleInfo axleInfo in axleInfos)
         {
@@ -181,11 +200,14 @@ public class CarController : MonoBehaviour
             }
             if (axleInfo.motor)
             {
-                axleInfo.leftWheel.motorTorque = isBraking ? 0f : motor;
-                axleInfo.rightWheel.motorTorque = isBraking ? 0f : motor;
+                // エンジンブレーキ中はモータートルクを0にする
+                axleInfo.leftWheel.motorTorque = (currentBrakeTorque > 0) ? 0 : motor;
+                axleInfo.rightWheel.motorTorque = (currentBrakeTorque > 0) ? 0 : motor;
             }
-            axleInfo.leftWheel.brakeTorque = brakeTorque;
-            axleInfo.rightWheel.brakeTorque = brakeTorque;
+            
+            // ブレーキトルクを適用
+            axleInfo.leftWheel.brakeTorque = currentBrakeTorque;
+            axleInfo.rightWheel.brakeTorque = currentBrakeTorque;
         }
     }
 

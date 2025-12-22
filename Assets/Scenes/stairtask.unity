@@ -3042,7 +3042,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1186017576
 Transform:
   m_ObjectHideFlags: 0
@@ -8504,6 +8504,67 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac0b09e7857660247b1477e93731de29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1981673842
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1981673845}
+  - component: {fileID: 1981673844}
+  - component: {fileID: 1981673843}
+  m_Layer: 0
+  m_Name: Random_2Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1981673843
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1981673842}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16b3afa409eaba90abc29f2d1ee72e5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stairsLeft: {fileID: 1412974482}
+  stairsRight: {fileID: 2120747110}
+--- !u!114 &1981673844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1981673842}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13f55a6d45ffca9459d45abdf16a9171, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  carTransform: {fileID: 7630137965219993621}
+  laneWidth: 3
+--- !u!4 &1981673845
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1981673842}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.274519, y: -1.1841497, z: -0.0772028}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2120747110
 GameObject:
   m_ObjectHideFlags: 0
@@ -12748,10 +12809,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00e46b3ca0b441293b9192c66d75e581, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectConfig: 0
+  selectConfig: 1
   configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
-  config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  config: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
   carController: {fileID: 2917880205400589745}
   frontCamera: {fileID: 8721246842223887218}
   backCamera: {fileID: 2028950494433199523}
@@ -13048,3 +13109,4 @@ SceneRoots:
   - {fileID: 1360544657}
   - {fileID: 1576149160}
   - {fileID: 1186017576}
+  - {fileID: 1981673845}
