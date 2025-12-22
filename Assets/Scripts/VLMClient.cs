@@ -585,7 +585,7 @@ public class VLMClient : MonoBehaviour
         if (VLMText != null) VLMText.text = finalResult;
     }
 
-    // 再帰的にスキーマとJSONを照らし合わせて表示を作る（インデックス削除版）
+   // 再帰的にスキーマとJSONを照らし合わせて表示を作る（None非表示版）
     private void FormatSchemaRecursive(StringBuilder sb, VLMSchemaModule module, string jsonContext, int indentLevel)
     {
         string indent = new string(' ', indentLevel * 2);
@@ -594,6 +594,8 @@ public class VLMClient : MonoBehaviour
         {
             string rawValue = ExtractJsonValue(jsonContext, prop.name);
 
+            // 値が見つからない、または "null" の場合はスキップ
+            // (必須項目で見つからない場合のみ表示したいならここを調整ですが、今回はNone非表示優先)
             if (string.IsNullOrEmpty(rawValue) || rawValue == "null")
             {
                 if (!prop.isOptional)
@@ -625,30 +627,35 @@ public class VLMClient : MonoBehaviour
 
                 for (int i = 0; i < items.Count; i++)
                 {
-                    // ▼▼▼ 変更: [0]: を削除し、区切り線に変更 ▼▼▼
-
-                    // 2つ目以降のアイテムの場合、区切り線を入れる
-                    if (i > 0)
-                    {
-                        sb.AppendLine($"{indent}  ---");
-                    }
+                    if (i > 0) sb.AppendLine($"{indent}  ---");
 
                     if (prop.schemaReference != null)
                     {
-                        // インデントを +2 から +1 に減らしてスッキリさせる
                         FormatSchemaRecursive(sb, prop.schemaReference, items[i], indentLevel + 1);
                     }
                     else
                     {
-                        sb.AppendLine($"{indent}  {FormatValueColor(items[i])}");
+                        // 配列の中身が None の場合は表示するか悩みますが、
+                        // 通常は空文字が入ることは少ないためそのまま表示します
+                        string val = FormatValueColor(items[i]);
+                        if (val != "None")
+                        {
+                            sb.AppendLine($"{indent}  {val}");
+                        }
                     }
-                    // ▲▲▲ 変更ここまで ▲▲▲
                 }
             }
             else
             {
+                // --- String / Enum / Boolean型 ---
                 string displayVal = FormatValueColor(rawValue);
-                sb.AppendLine($"{indent}- {prop.name}: {displayVal}");
+
+                // ▼▼▼ 修正: 値が "None" なら行ごと表示しない ▼▼▼
+                if (displayVal != "None")
+                {
+                    sb.AppendLine($"{indent}- {prop.name}: {displayVal}");
+                }
+                // ▲▲▲ 修正ここまで ▲▲▲
             }
         }
     }
