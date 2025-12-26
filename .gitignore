@@ -98,9 +98,6 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
-# フォントを無視
-NotoSansJP*
-
 # StreamingAssets フォルダ全体を無視
 /Assets/StreamingAssets/
 
