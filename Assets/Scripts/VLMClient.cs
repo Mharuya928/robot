@@ -2,12 +2,18 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Networking;
+using System; // Action用
+using System.Diagnostics; // Stopwatch用
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Linq;
+
+// ▼▼▼ この1行を追加してください！ ▼▼▼
+using Debug = UnityEngine.Debug;
+// ▲▲▲ 追加ここまで ▲▲▲
 
 public class VLMClient : MonoBehaviour
 {
@@ -60,8 +66,35 @@ public class VLMClient : MonoBehaviour
     }
     // ▲▲▲ 変更ここまで ▲▲▲
 
+    [Header("Debug")]
+    [Tooltip("チェックを入れるとOllamaに通信せず、ダミー応答で実験を高速進行させます")]
+    public bool debugMockMode = false; // ← これを追加
+
     [Header("Dependencies")]
     public CarController carController;
+
+    // =================================================================
+    // 実験用設定・UI
+    // =================================================================
+    [Header("Experiment Settings")]
+    [Tooltip("実験開始ボタン")]
+    public Button startExperimentButton;
+    [Tooltip("実験進捗表示用テキスト")]
+    public TMP_Text experimentStatusText;
+
+    private string logFilePath; // ログ保存先
+
+    // 計測結果受け渡し用構造体
+    public struct InferenceMetrics
+    {
+        public long t_start_ms;
+        public long t_end_ms;
+        public long latency_ms;
+        public int out_chars;
+        public int out_bytes;
+        public string responseContent;
+        public bool isSuccess;
+    }
 
     // =================================================================
     // 2. カメラ設定
@@ -122,6 +155,19 @@ public class VLMClient : MonoBehaviour
         if (config == null) Debug.LogError("VLM Config Error");
         if (configText != null) configText.text = $"Config: {config?.name}";
         if (VLMText != null) VLMText.text = $"VLM: Ready ({config?.ModelName})";
+
+        // ▼▼▼ 追加: 実験用初期化 ▼▼▼
+        if (startExperimentButton != null)
+        {
+            startExperimentButton.onClick.AddListener(() => StartCoroutine(RunBaselineExperiment()));
+        }
+
+        // ログ保存パスの決定 (Assets/Testlogs/inference_log.csv)
+        string folder = Path.Combine(Application.dataPath, "Testlogs");
+        if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+        logFilePath = Path.Combine(folder, "inference_log.csv");
+        // ▲▲▲ 追加ここまで ▲▲▲
+
         Debug.Log("VLM Client Initialized.");
     }
 
@@ -154,181 +200,283 @@ public class VLMClient : MonoBehaviour
     }
 
     // =================================================================
-    // AI通信のメイン処理 (Multi-Message対応版)
+    // ★★★ 卒論評価用実験コルーチン (画像固定版) ★★★
     // =================================================================
-    private IEnumerator SendRequestToOllama()
+    private IEnumerator RunBaselineExperiment()
+    {
+        if (isProcessing) { Debug.LogWarning("実験不可: 他の処理中"); yield break; }
+        
+        bool originalAutoWarning = enableAutoWarning;
+        enableAutoWarning = false;
+
+        Debug.Log($"【Experiment Start】Saving to: {logFilePath}");
+        if (experimentStatusText) experimentStatusText.text = "Initializing...";
+
+        // ▼▼▼ 追加: ここで1回だけ撮影してキャッシュする！ ▼▼▼
+        if (experimentStatusText) experimentStatusText.text = "Capturing base images...";
+        yield return null; // 1フレ待ってUI更新
+        List<string> fixedImages = CaptureAndEncodeAllImages();
+        Debug.Log("Base images captured and cached.");
+        // ▲▲▲ 追加ここまで ▲▲▲
+
+        // CSVヘッダ (変更なし)
+        if (!File.Exists(logFilePath)) File.WriteAllText(logFilePath, "cond,i,t_start_ms,t_end_ms,latency_ms,out_chars,out_bytes,parse_ok\n", Encoding.UTF8);
+        else File.AppendAllText(logFilePath, "\n", Encoding.UTF8);
+
+        // ウォームアップ (変更: キャッシュ画像を渡す)
+        if (experimentStatusText) experimentStatusText.text = "Warming up...";
+        for (int w = 0; w < 5; w++)
+        {
+            selectConfig = ConfigType.ConfigA; ApplyConfigSelection();
+            yield return StartCoroutine(SendRequestToOllama(null, fixedImages)); // ★画像を渡す
+
+            selectConfig = ConfigType.ConfigB; ApplyConfigSelection();
+            yield return StartCoroutine(SendRequestToOllama(null, fixedImages)); // ★画像を渡す
+        }
+
+        // 本番計測 (変更: キャッシュ画像を渡す)
+        int totalIterations = 100;
+        for (int i = 1; i <= totalIterations; i++)
+        {
+            if (experimentStatusText) experimentStatusText.text = $"Progress: {i}/{totalIterations}";
+
+            // A条件
+            selectConfig = ConfigType.ConfigA; ApplyConfigSelection();
+            InferenceMetrics metricsA = new InferenceMetrics();
+            bool doneA = false;
+            yield return StartCoroutine(SendRequestToOllama((m) => { metricsA = m; doneA = true; }, fixedImages)); // ★画像を渡す
+            while (!doneA) yield return null;
+            
+            int parseOk = CheckJsonParse(metricsA.responseContent);
+            File.AppendAllText(logFilePath, $"A,{i},{metricsA.t_start_ms},{metricsA.t_end_ms},{metricsA.latency_ms},{metricsA.out_chars},{metricsA.out_bytes},{parseOk}\n", Encoding.UTF8);
+            yield return new WaitForSeconds(0.1f);
+
+            // B条件
+            selectConfig = ConfigType.ConfigB; ApplyConfigSelection();
+            InferenceMetrics metricsB = new InferenceMetrics();
+            bool doneB = false;
+            yield return StartCoroutine(SendRequestToOllama((m) => { metricsB = m; doneB = true; }, fixedImages)); // ★画像を渡す
+            while (!doneB) yield return null;
+
+            File.AppendAllText(logFilePath, $"B,{i},{metricsB.t_start_ms},{metricsB.t_end_ms},{metricsB.latency_ms},{metricsB.out_chars},{metricsB.out_bytes},\n", Encoding.UTF8);
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        if (experimentStatusText) experimentStatusText.text = "Complete!";
+        Debug.Log($"【Experiment Complete】Log saved at: {logFilePath}");
+        enableAutoWarning = originalAutoWarning;
+        selectConfig = ConfigType.ConfigA; ApplyConfigSelection();
+    }
+
+    // 最小限のJSONパース判定
+    private int CheckJsonParse(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        text = text.Trim();
+        // 簡易判定: {}で囲まれているか
+        if (text.StartsWith("{") && text.EndsWith("}")) return 1;
+        return 0;
+    }
+
+    // 画像撮影～Base64変換を一括で行うヘルパー
+    private List<string> CaptureAndEncodeAllImages()
+    {
+        List<Texture2D> capturedTextures = new List<Texture2D>();
+        List<string> base64Results = new List<string>();
+
+        // 固定4方向 (SurroundView)
+        if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); }
+        if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); }
+        if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); }
+        if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); }
+
+        for (int i = 0; i < capturedTextures.Count; i++)
+        {
+            byte[] bytes = capturedTextures[i].EncodeToJPG();
+            base64Results.Add(Convert.ToBase64String(bytes));
+            Destroy(capturedTextures[i]);
+        }
+        return base64Results;
+    }
+
+    // =================================================================
+    // AI通信のメイン処理 (キャッシュ対応版)
+    // =================================================================
+    // ▼▼▼ 変更: 第2引数に cachedImages を追加 ▼▼▼
+    private IEnumerator SendRequestToOllama(System.Action<InferenceMetrics> onComplete = null, List<string> cachedImages = null)
     {
         if (isProcessing) yield break;
         isProcessing = true;
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
-        // モジュールログ
-        StringBuilder moduleLog = new StringBuilder();
-        if (config.activeModules != null) foreach (var m in config.activeModules) if (m) moduleLog.AppendLine(m.moduleName);
-        Debug.Log($"Active Modules:\n{moduleLog}");
+        bool isExperimentMode = (onComplete != null);
+
+        // ★計測開始
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+        long t_start = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+
+        // モジュールログ (通常時のみ)
+        if (!isExperimentMode)
+        {
+            StringBuilder moduleLog = new StringBuilder();
+            if (config.activeModules != null) foreach (var m in config.activeModules) if (m) moduleLog.AppendLine(m.moduleName);
+            Debug.Log($"Active Modules:\n{moduleLog}");
+        }
 
         if (carController != null) carController.SetRaycastLineVisibility(false);
         yield return null;
 
-        // 1. 画像の撮影と収集
-        List<Texture2D> capturedTextures = new List<Texture2D>();
-
-        // 順番記録用ログ
-        StringBuilder orderLog = new StringBuilder();
-        orderLog.AppendLine("【Image Order Check】(AIへの送信順)");
-
-        // カメラ撮影（順番は変えないこと！）
-        switch (config.viewMode)
-        {
-            case VLMConfig.ViewMode.FPS:
-                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
-                break;
-            case VLMConfig.ViewMode.MultiView:
-                if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); orderLog.AppendLine("[0] Front (前方)"); }
-                if (topCamera) { capturedTextures.Add(CaptureCameraView(topCamera)); orderLog.AppendLine("[1] Top (俯瞰)"); }
-                break;
-            case VLMConfig.ViewMode.SurroundView:
-                if (frontCamera)
-                {
-                    Texture2D t = CaptureCameraView(frontCamera);
-                    AddColorIndicator(t, FRONT); // 前方 = 赤
-                    capturedTextures.Add(t);
-                    orderLog.AppendLine("[0] Front (Red/赤)");
-                }
-                if (backCamera)
-                {
-                    Texture2D t = CaptureCameraView(backCamera);
-                    AddColorIndicator(t, BACK); // 後方 = 青
-                    capturedTextures.Add(t);
-                    orderLog.AppendLine("[1] Back (Blue/青)");
-                }
-                if (leftCamera)
-                {
-                    Texture2D t = CaptureCameraView(leftCamera);
-                    AddColorIndicator(t, LEFT); // 左 = 緑
-                    capturedTextures.Add(t);
-                    orderLog.AppendLine("[2] Left (Green/緑)");
-                }
-                if (rightCamera)
-                {
-                    Texture2D t = CaptureCameraView(rightCamera);
-                    AddColorIndicator(t, RIGHT); // 右 = 黄
-                    capturedTextures.Add(t);
-                    orderLog.AppendLine("[3] Right (Yellow/黄)");
-                }
-                break;
-        }
-        Debug.Log(orderLog.ToString());
-
-        if (capturedTextures.Count == 0)
-        {
-            Debug.LogError("撮影失敗");
-            isProcessing = false;
-            yield break;
-        }
-
-        if (carController != null) carController.SetRaycastLineVisibility(true);
-
-        // 2. Base64変換
+        // =========================================================
+        // 1. 画像収集 (キャッシュ判定ロジックへ変更)
+        // =========================================================
         List<string> base64Images = new List<string>();
-        for (int i = 0; i < capturedTextures.Count; i++)
+        List<string> imageLabels = new List<string>();
+
+        // ▼▼▼ 変更: キャッシュがあれば使い、なければ撮影する分岐 ▼▼▼
+        if (cachedImages != null && cachedImages.Count > 0)
         {
-            byte[] bytes = capturedTextures[i].EncodeToJPG();
-            SaveImageToFile(bytes, i);
-            base64Images.Add(System.Convert.ToBase64String(bytes));
-            Destroy(capturedTextures[i]);
-        }
-
-        // =========================================================
-        // 3. JSONメッセージの構築 (ここが最大の変更点)
-        // =========================================================
-
-        StringBuilder messagesJson = new StringBuilder();
-        messagesJson.Append("["); // 配列開始
-
-        // (A) 画像メッセージを順番に追加
-        for (int i = 0; i < base64Images.Count; i++)
-        {
-            // インデックスに応じた「意味（ラベル）」を取得
-            string label = GetViewLabel(config.viewMode, i);
-            string imageBase64 = base64Images[i];
-
-            // 1メッセージを作る { "role": "user", "content": "ラベル", "images": ["Base64"] }
-            // 画像データ部分だけ巨大なので、ここは文字列操作で慎重に結合
-            messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{label}"", ""images"": [""{imageBase64}""] }},");
-        }
-
-        // (B) 最後にプロンプト（指示）だけのメッセージを追加
-        // プロンプト内の改行やダブルクォートをエスケープ
-        string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
-
-        // 最後の指示メッセージ（画像なし）
-        messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{safePrompt}"" }}");
-
-        messagesJson.Append("]"); // 配列終了
-
-        // =========================================================
-        // 4. リクエストボディの作成
-        // =========================================================
-
-        OllamaOptions options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
-        string optionsJson = JsonUtility.ToJson(options);
-
-        string jsonBody = "";
-        bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
-
-        if (isFreeForm)
-        {
-            // Formatなし
-            jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesJson.ToString()} }}";
+            // A. キャッシュを使用 (実験モード・高速化)
+            base64Images = cachedImages;
+            
+            // ラベルは固定 (SurroundView順)
+            imageLabels.Add("これは車両前方。以後この対応を保持。");
+            imageLabels.Add("これは車両後方。以後この対応を保持。");
+            imageLabels.Add("これは車両左側。以後この対応を保持。");
+            imageLabels.Add("これは車両右側。以後この対応を保持。");
         }
         else
         {
-            // Format (GBNF) あり
+            // B. 新規撮影 (通常モード or キャッシュなし)
+            List<Texture2D> capturedTextures = new List<Texture2D>();
+
+            if (isExperimentMode)
+            {
+                // 実験モードだがキャッシュがない場合（念のため）
+                if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); imageLabels.Add("これは車両前方。以後この対応を保持。"); }
+                if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
+                if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
+                if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); imageLabels.Add("これは車両右側。以後この対応を保持。"); }
+            }
+            else
+            {
+                // 通常プレイ: Config設定に従う
+                switch (config.viewMode)
+                {
+                    case VLMConfig.ViewMode.FPS:
+                        if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); imageLabels.Add("これは車両前方の映像です。"); }
+                        break;
+                    case VLMConfig.ViewMode.MultiView:
+                        if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); imageLabels.Add("これは車両前方。"); }
+                        if (topCamera)   { capturedTextures.Add(CaptureCameraView(topCamera));   imageLabels.Add("これは車両俯瞰(上から)。"); }
+                        break;
+                    case VLMConfig.ViewMode.SurroundView:
+                        if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); imageLabels.Add("これは車両前方。以後この対応を保持。"); }
+                        if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
+                        if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
+                        if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); imageLabels.Add("これは車両右側。以後この対応を保持。"); }
+                        break;
+                }
+            }
+
+            // 撮影した画像を変換＆保存
+            for (int i = 0; i < capturedTextures.Count; i++)
+            {
+                byte[] bytes = capturedTextures[i].EncodeToJPG();
+                SaveImageToFile(bytes, i); // 通常時は保存
+                base64Images.Add(Convert.ToBase64String(bytes));
+                Destroy(capturedTextures[i]);
+            }
+        }
+        // ▲▲▲ 変更ここまで ▲▲▲
+
+        if (carController != null) carController.SetRaycastLineVisibility(true);
+
+        // =========================================================
+        // 3. メッセージ構築 (以降は変更なし)
+        // =========================================================
+        StringBuilder messagesJson = new StringBuilder();
+        messagesJson.Append("[");
+
+        for (int i = 0; i < base64Images.Count; i++)
+        {
+            string label = (i < imageLabels.Count) ? imageLabels[i] : "画像情報";
+            messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{label}"", ""images"": [""{base64Images[i]}""] }},");
+        }
+        
+        string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
+        messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{safePrompt}"" }}");
+        messagesJson.Append("]");
+
+        // =========================================================
+        // 4. リクエスト作成 (以降は変更なし)
+        // =========================================================
+        OllamaOptions options;
+        if (isExperimentMode) options = new OllamaOptions { num_predict = 1000, temperature = 0.5f, num_ctx = 4096 };
+        else options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
+        
+        string optionsJson = JsonUtility.ToJson(options);
+        string jsonBody = "";
+        bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
+
+        if (isFreeForm) jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesJson.ToString()} }}";
+        else
+        {
             string schemaJson = BuildDynamicSchemaJson(config.activeModules);
             jsonBody = $@"{{ ""model"": ""{config.ModelName}"", ""stream"": false, ""options"": {optionsJson}, ""messages"": {messagesJson.ToString()}, ""format"": {schemaJson} }}";
         }
 
-        // ログ出力（画像データは省略して表示）
-        // ログ出力（画像データをカメラ名に置き換えて表示）
-        if (!string.IsNullOrEmpty(jsonBody))
+        // =========================================================
+        // ★★★ デバッグ用モック（通信スキップ） ★★★
+        // =========================================================
+        if (debugMockMode)
         {
-            string debugJson = jsonBody;
+            // 少しだけ待機（処理っぽく見せるため）
+            yield return new WaitForSeconds(0.05f);
 
-            // リストのインデックスを使って、各画像を対応するカメラ名のタグに置換する
-            for (int i = 0; i < base64Images.Count; i++)
+            sw.Stop();
+            long t_end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+
+            // ダミーの応答内容 (A条件ならJSON、B条件なら適当なテキスト)
+            string mockContent = "";
+            bool isJsonMode = (config.activeModules != null && config.activeModules.Count > 0);
+
+            if (isJsonMode)
             {
-                string camLabel = "Unknown";
-
-                // 現在のViewModeとインデックス(i)からカメラ名を判定
-                if (config.viewMode == VLMConfig.ViewMode.SurroundView)
-                {
-                    switch (i)
-                    {
-                        case 0: camLabel = "Front(前方)"; break;
-                        case 1: camLabel = "Back(後方)"; break;
-                        case 2: camLabel = "Left(左側)"; break;
-                        case 3: camLabel = "Right(右側)"; break;
-                    }
-                }
-                else if (config.viewMode == VLMConfig.ViewMode.MultiView)
-                {
-                    switch (i)
-                    {
-                        case 0: camLabel = "Front(前方)"; break;
-                        case 1: camLabel = "Top(俯瞰)"; break;
-                    }
-                }
-                else // FPS
-                {
-                    camLabel = "Front(前方)";
-                }
-
-                // Base64文字列を、分かりやすいタグに置換
-                debugJson = debugJson.Replace(base64Images[i], $"<IMAGE: {camLabel}>");
+                // JSON形式のダミー
+                mockContent = "{ \"障害物情報\": { \"障害物一覧\": [] }, \"左右比較\": \"なし\", \"推奨行動\": \"停止\" }";
+            }
+            else
+            {
+                // 自由記述のダミー
+                mockContent = "これはダミーの応答です。障害物はありません。";
             }
 
-            Debug.Log($"【Request Debug】Config: {config.name}\nSending JSON: {debugJson}");
+            // ログ出力
+            Debug.Log($"[Mock] Skipped Network Request. Latency: {sw.ElapsedMilliseconds}ms");
+            
+            // UI表示
+            if (isFreeForm && VLMText) VLMText.text = mockContent;
+            else DisplayDynamicResult(mockContent);
+
+            // 実験用コールバックを呼んで終了
+            if (isExperimentMode && onComplete != null)
+            {
+                InferenceMetrics metrics = new InferenceMetrics
+                {
+                    t_start_ms = t_start,
+                    t_end_ms = t_end,
+                    latency_ms = sw.ElapsedMilliseconds,
+                    out_chars = mockContent.Length,
+                    out_bytes = Encoding.UTF8.GetByteCount(mockContent),
+                    responseContent = mockContent,
+                    isSuccess = true
+                };
+                onComplete(metrics);
+            }
+            
+            isProcessing = false;
+            yield break; // ★ここで強制終了（通信に行かせない）
         }
 
         // 5. 送信
@@ -341,6 +489,11 @@ public class VLMClient : MonoBehaviour
 
             yield return request.SendWebRequest();
 
+            sw.Stop();
+            long t_end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+            
+            string contentResult = "";
+
             if (request.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("Error: " + request.error);
@@ -349,18 +502,34 @@ public class VLMClient : MonoBehaviour
             else
             {
                 string rawJson = request.downloadHandler.text;
+                contentResult = ExtractContent(rawJson);
+                
+                if (!isExperimentMode)
+                {
+                    OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
+                    int used = responseData.prompt_eval_count;
+                    int limit = (isExperimentMode) ? 4096 : config.contextSize;
+                    Debug.Log($"【Token Usage】 Used: {used} / Limit: {limit}");
+                }
+                Debug.Log("AI Response: " + contentResult);
+                
+                if (isFreeForm && VLMText) VLMText.text = contentResult;
+                else DisplayDynamicResult(contentResult);
+            }
 
-                // トークンチェック
-                OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
-                int used = responseData.prompt_eval_count;
-                int limit = config.contextSize;
-                string tokenLog = $"【Token Usage】 Used: {used} / Limit: {limit}";
-                if (used >= limit) Debug.LogError($"{tokenLog} ⚠️不足!"); else Debug.Log($"{tokenLog} ✅OK");
-
-                string contentJson = ExtractContent(rawJson);
-                Debug.Log("AI Response: " + contentJson);
-                if (isFreeForm && VLMText) VLMText.text = contentJson;
-                else DisplayDynamicResult(contentJson);
+            if (isExperimentMode && onComplete != null)
+            {
+                InferenceMetrics metrics = new InferenceMetrics
+                {
+                    t_start_ms = t_start,
+                    t_end_ms = t_end,
+                    latency_ms = sw.ElapsedMilliseconds,
+                    out_chars = contentResult.Length,
+                    out_bytes = Encoding.UTF8.GetByteCount(contentResult),
+                    responseContent = contentResult,
+                    isSuccess = (request.result == UnityWebRequest.Result.Success)
+                };
+                onComplete(metrics);
             }
         }
         isProcessing = false;
@@ -585,7 +754,7 @@ public class VLMClient : MonoBehaviour
         if (VLMText != null) VLMText.text = finalResult;
     }
 
-   // 再帰的にスキーマとJSONを照らし合わせて表示を作る（None非表示版）
+    // 再帰的にスキーマとJSONを照らし合わせて表示を作る（None非表示版）
     private void FormatSchemaRecursive(StringBuilder sb, VLMSchemaModule module, string jsonContext, int indentLevel)
     {
         string indent = new string(' ', indentLevel * 2);

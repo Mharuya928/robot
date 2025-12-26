@@ -8205,6 +8205,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1734373185 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5984863566967362842, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+  m_PrefabInstance: {fileID: 1734373181}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1734373186 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6741789220123183942, guid: a18e3c50ed004fa15a4c13a28c1959c4, type: 3}
+  m_PrefabInstance: {fileID: 1734373181}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1792014631
 GameObject:
   m_ObjectHideFlags: 0
@@ -12813,7 +12835,10 @@ MonoBehaviour:
   configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
   config: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
+  debugMockMode: 0
   carController: {fileID: 2917880205400589745}
+  startExperimentButton: {fileID: 1734373186}
+  experimentStatusText: {fileID: 1734373185}
   frontCamera: {fileID: 8721246842223887218}
   backCamera: {fileID: 2028950494433199523}
   topCamera: {fileID: 2224521381652211013}
