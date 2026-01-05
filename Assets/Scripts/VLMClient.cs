@@ -479,6 +479,41 @@ public class VLMClient : MonoBehaviour
             yield break; // ★ここで強制終了（通信に行かせない）
         }
 
+        if (!string.IsNullOrEmpty(jsonBody))
+        {
+            string debugJson = jsonBody;
+            
+            // Base64の長い文字列を、短いタグ <IMAGE: ...> に置換して見やすくする
+            for (int i = 0; i < base64Images.Count; i++)
+            {
+                string camLabel = "Unknown";
+                
+                // 画像枚数からカメラを推測 (実験モードは4枚固定)
+                if (base64Images.Count == 4)
+                {
+                    switch (i)
+                    {
+                        case 0: camLabel = "Front(前方)"; break;
+                        case 1: camLabel = "Back(後方)"; break;
+                        case 2: camLabel = "Left(左側)"; break;
+                        case 3: camLabel = "Right(右側)"; break;
+                    }
+                }
+                else if (base64Images.Count == 2)
+                {
+                    switch (i) { case 0: camLabel = "Front(前方)"; break; case 1: camLabel = "Top(俯瞰)"; break; }
+                }
+                else
+                {
+                    camLabel = "Front(前方)";
+                }
+
+                debugJson = debugJson.Replace(base64Images[i], $"<IMAGE: {camLabel}>");
+            }
+
+            Debug.Log($"【Request Debug】Config: {config.name}\nSending JSON: {debugJson}");
+        }
+
         // 5. 送信
         using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
         {

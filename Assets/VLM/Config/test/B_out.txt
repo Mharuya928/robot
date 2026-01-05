@@ -1,0 +1,11 @@
+AI Response: 1. 【障害物の検出】  
+前方に黄色い階段状の障害物が中距離に存在する。後方には障害物は確認されない。左側および右側にも物理的な障害物は存在しない。
+
+2. 【左右比較（進行方向前方）】  
+進行方向前方の空間において、左側と右側の両方とも障害物がなく、安全な空間が確保されている。ただし、左側の空間は右側に比べてやや広く、進行方向の視界も良好である。
+
+3. 【推奨行動】  
+左へ回避
+UnityEngine.Debug:Log (object)
+VLMClient/<SendRequestToOllama>d__40:MoveNext () (at Assets/Scripts/VLMClient.cs:549)
+UnityEngine.SetupCoroutine:InvokeMoveNext (System.Collections.IEnumerator,intptr) (at /home/bokken/build/output/unity/unity/Runtime/Export/Scripting/Coroutines.cs:17)
