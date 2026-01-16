@@ -1,0 +1,2 @@
+﻿cond,i,t_start_ms,t_end_ms,latency_ms,out_chars,out_bytes,parse_ok
+A,1,652782,658107,5324,551,753,1

@@ -24,3 +24,31 @@ AI Response: {
 UnityEngine.Debug:Log (object)
 VLMClient/<SendRequestToOllama>d__21:MoveNext () (at Assets/Scripts/VLMClient.cs:241)
 UnityEngine.SetupCoroutine:InvokeMoveNext (System.Collections.IEnumerator,intptr) (at /home/bokken/build/output/unity/unity/Runtime/Export/Scripting/Coroutines.cs:17)
+
+AI Response: {
+  "障害物情報": {
+    "障害物一覧": [
+      {
+        "種別": "階段",
+        "位置": "前方",
+        "距離": "近距離",
+        "補足": "黄色"
+      },
+      {
+        "種別": "壁",
+        "位置": "左側",
+        "距離": "中距離"
+      },
+      {
+        "種別": "壁",
+        "位置": "右側",
+        "距離": "中距離"
+      }
+    ]
+  },
+  "左右比較（前方）": "左",
+  "推奨行動": "左へ回避"
+}
+UnityEngine.Debug:Log (object)
+VLMClient/<SendRequestToOllama>d__40:MoveNext () (at Assets/Scripts/VLMClient.cs:549)
+UnityEngine.SetupCoroutine:InvokeMoveNext (System.Collections.IEnumerator,intptr) (at /home/bokken/build/output/unity/unity/Runtime/Export/Scripting/Coroutines.cs:17)
