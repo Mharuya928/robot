@@ -9,3 +9,21 @@ AI Response: 1. 【障害物の検出】
 UnityEngine.Debug:Log (object)
 VLMClient/<SendRequestToOllama>d__40:MoveNext () (at Assets/Scripts/VLMClient.cs:549)
 UnityEngine.SetupCoroutine:InvokeMoveNext (System.Collections.IEnumerator,intptr) (at /home/bokken/build/output/unity/unity/Runtime/Export/Scripting/Coroutines.cs:17)
+
+AI Response: 1. 【障害物の検出】  
+   車両前方には、黄色い斜面状の障害物が中距離に存在する。  
+   車両後方には、壁が遠距離に存在する。  
+   車両左側には、壁が遠距離に存在する。  
+   車両右側には、壁が遠距離に存在する。  
+   他の位置に物理的な障害物は確認されない。
+
+2. 【左右比較（進行方向前方）】  
+   進行方向前方において、左側は障害物がなく、右側には黄色い障害物が存在する。  
+   左側の空間は広く、右側は障害物によって狭められている。  
+   進行方向前方の左右を比較すると、左側の方がより安全で、回避行動に適している。
+
+3. 【推奨行動】  
+   左へ回避
+UnityEngine.Debug:Log (object)
+VLMClient/<SendRequestToOllama>d__40:MoveNext () (at Assets/Scripts/VLMClient.cs:549)
+UnityEngine.SetupCoroutine:InvokeMoveNext (System.Collections.IEnumerator,intptr) (at /home/bokken/build/output/unity/unity/Runtime/Export/Scripting/Coroutines.cs:17)
