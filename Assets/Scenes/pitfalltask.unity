@@ -4239,7 +4239,10 @@ MonoBehaviour:
   configA: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
   configB: {fileID: 11400000, guid: 4c0d150be13cdd139b22e8558e9b48bd, type: 2}
   config: {fileID: 11400000, guid: deebc36fd0f06a405baac4d682d0bdab, type: 2}
+  debugMockMode: 0
   carController: {fileID: 1064351411}
+  startExperimentButton: {fileID: 0}
+  experimentStatusText: {fileID: 0}
   frontCamera: {fileID: 788334834}
   backCamera: {fileID: 644339129}
   topCamera: {fileID: 1445993929}
@@ -6771,6 +6774,59 @@ MonoBehaviour:
   m_SelectedFaces: 
   m_SelectedEdges: []
   m_SelectedVertices: 
+--- !u!1 &1723460080
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1723460082}
+  - component: {fileID: 1723460081}
+  m_Layer: 0
+  m_Name: OllamaManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1723460081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723460080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f76aeebfe393feedfb7ed8a3c23d775e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  host: 127.0.0.1
+  port: 11434
+  startupTimeoutSec: 12
+  killOnQuit: 1
+  modelToEnsure: 
+  autoPullIfMissing: 1
+  streamingRelativePath: ollama/ollama
+  persistentBinDirName: ollama_bin
+  writeLogs: 1
+--- !u!4 &1723460082
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723460080}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 529.5, y: -356.685, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1741284629
 GameObject:
   m_ObjectHideFlags: 0
@@ -7415,3 +7471,4 @@ SceneRoots:
   - {fileID: 1360544657}
   - {fileID: 1576149160}
   - {fileID: 540467894}
+  - {fileID: 1723460082}

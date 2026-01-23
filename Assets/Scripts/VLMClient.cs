@@ -41,6 +41,24 @@ public class VLMClient : MonoBehaviour
         ConfigB
     }
 
+    private IEnumerator WaitForOllamaReady(float timeoutSec = 10f)
+    {
+        float t = 0f;
+        while (t < timeoutSec)
+        {
+            using (var req = UnityWebRequest.Get("http://127.0.0.1:11434/api/tags"))
+            {
+                req.timeout = 1;
+                yield return req.SendWebRequest();
+                if (req.result == UnityWebRequest.Result.Success && req.responseCode >= 200 && req.responseCode < 300)
+                    yield break; // 準備OK
+            }
+            t += 0.25f;
+            yield return new WaitForSeconds(0.25f);
+        }
+        Debug.LogError("[VLMClient] Ollama not ready (timeout).");
+    }
+
     // エディタ上で値を変更した瞬間に反映させる
     void OnValidate()
     {
@@ -205,7 +223,7 @@ public class VLMClient : MonoBehaviour
     private IEnumerator RunBaselineExperiment()
     {
         if (isProcessing) { Debug.LogWarning("実験不可: 他の処理中"); yield break; }
-        
+
         bool originalAutoWarning = enableAutoWarning;
         enableAutoWarning = false;
 
@@ -246,7 +264,7 @@ public class VLMClient : MonoBehaviour
             bool doneA = false;
             yield return StartCoroutine(SendRequestToOllama((m) => { metricsA = m; doneA = true; }, fixedImages)); // ★画像を渡す
             while (!doneA) yield return null;
-            
+
             int parseOk = CheckJsonParse(metricsA.responseContent);
             File.AppendAllText(logFilePath, $"A,{i},{metricsA.t_start_ms},{metricsA.t_end_ms},{metricsA.latency_ms},{metricsA.out_chars},{metricsA.out_bytes},{parseOk}\n", Encoding.UTF8);
             yield return new WaitForSeconds(0.1f);
@@ -286,8 +304,8 @@ public class VLMClient : MonoBehaviour
 
         // 固定4方向 (SurroundView)
         if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); }
-        if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); }
-        if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); }
+        if (backCamera) { Texture2D t = CaptureCameraView(backCamera); AddColorIndicator(t, BACK); capturedTextures.Add(t); }
+        if (leftCamera) { Texture2D t = CaptureCameraView(leftCamera); AddColorIndicator(t, LEFT); capturedTextures.Add(t); }
         if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); }
 
         for (int i = 0; i < capturedTextures.Count; i++)
@@ -307,6 +325,9 @@ public class VLMClient : MonoBehaviour
     {
         if (isProcessing) yield break;
         isProcessing = true;
+
+        yield return WaitForOllamaReady();
+
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
         bool isExperimentMode = (onComplete != null);
@@ -338,7 +359,7 @@ public class VLMClient : MonoBehaviour
         {
             // A. キャッシュを使用 (実験モード・高速化)
             base64Images = cachedImages;
-            
+
             // ラベルは固定 (SurroundView順)
             imageLabels.Add("これは車両前方。以後この対応を保持。");
             imageLabels.Add("これは車両後方。以後この対応を保持。");
@@ -354,8 +375,8 @@ public class VLMClient : MonoBehaviour
             {
                 // 実験モードだがキャッシュがない場合（念のため）
                 if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); imageLabels.Add("これは車両前方。以後この対応を保持。"); }
-                if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
-                if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
+                if (backCamera) { Texture2D t = CaptureCameraView(backCamera); AddColorIndicator(t, BACK); capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
+                if (leftCamera) { Texture2D t = CaptureCameraView(leftCamera); AddColorIndicator(t, LEFT); capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
                 if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); imageLabels.Add("これは車両右側。以後この対応を保持。"); }
             }
             else
@@ -368,12 +389,12 @@ public class VLMClient : MonoBehaviour
                         break;
                     case VLMConfig.ViewMode.MultiView:
                         if (frontCamera) { capturedTextures.Add(CaptureCameraView(frontCamera)); imageLabels.Add("これは車両前方。"); }
-                        if (topCamera)   { capturedTextures.Add(CaptureCameraView(topCamera));   imageLabels.Add("これは車両俯瞰(上から)。"); }
+                        if (topCamera) { capturedTextures.Add(CaptureCameraView(topCamera)); imageLabels.Add("これは車両俯瞰(上から)。"); }
                         break;
                     case VLMConfig.ViewMode.SurroundView:
                         if (frontCamera) { Texture2D t = CaptureCameraView(frontCamera); AddColorIndicator(t, FRONT); capturedTextures.Add(t); imageLabels.Add("これは車両前方。以後この対応を保持。"); }
-                        if (backCamera)  { Texture2D t = CaptureCameraView(backCamera);  AddColorIndicator(t, BACK);  capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
-                        if (leftCamera)  { Texture2D t = CaptureCameraView(leftCamera);  AddColorIndicator(t, LEFT);  capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
+                        if (backCamera) { Texture2D t = CaptureCameraView(backCamera); AddColorIndicator(t, BACK); capturedTextures.Add(t); imageLabels.Add("これは車両後方。以後この対応を保持。"); }
+                        if (leftCamera) { Texture2D t = CaptureCameraView(leftCamera); AddColorIndicator(t, LEFT); capturedTextures.Add(t); imageLabels.Add("これは車両左側。以後この対応を保持。"); }
                         if (rightCamera) { Texture2D t = CaptureCameraView(rightCamera); AddColorIndicator(t, RIGHT); capturedTextures.Add(t); imageLabels.Add("これは車両右側。以後この対応を保持。"); }
                         break;
                 }
@@ -403,7 +424,7 @@ public class VLMClient : MonoBehaviour
             string label = (i < imageLabels.Count) ? imageLabels[i] : "画像情報";
             messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{label}"", ""images"": [""{base64Images[i]}""] }},");
         }
-        
+
         string safePrompt = config.CurrentPrompt.Replace("\"", "\\\"").Replace("\n", "\\n");
         messagesJson.Append($@"{{ ""role"": ""user"", ""content"": ""{safePrompt}"" }}");
         messagesJson.Append("]");
@@ -414,7 +435,7 @@ public class VLMClient : MonoBehaviour
         OllamaOptions options;
         if (isExperimentMode) options = new OllamaOptions { num_predict = 1000, temperature = 0.5f, num_ctx = 4096 };
         else options = new OllamaOptions { num_predict = config.maxTokens, temperature = config.temperature, num_ctx = config.contextSize };
-        
+
         string optionsJson = JsonUtility.ToJson(options);
         string jsonBody = "";
         bool isFreeForm = (config.activeModules == null || config.activeModules.Count == 0);
@@ -454,7 +475,7 @@ public class VLMClient : MonoBehaviour
 
             // ログ出力
             Debug.Log($"[Mock] Skipped Network Request. Latency: {sw.ElapsedMilliseconds}ms");
-            
+
             // UI表示
             if (isFreeForm && VLMText) VLMText.text = mockContent;
             else DisplayDynamicResult(mockContent);
@@ -474,7 +495,7 @@ public class VLMClient : MonoBehaviour
                 };
                 onComplete(metrics);
             }
-            
+
             isProcessing = false;
             yield break; // ★ここで強制終了（通信に行かせない）
         }
@@ -482,12 +503,12 @@ public class VLMClient : MonoBehaviour
         if (!string.IsNullOrEmpty(jsonBody))
         {
             string debugJson = jsonBody;
-            
+
             // Base64の長い文字列を、短いタグ <IMAGE: ...> に置換して見やすくする
             for (int i = 0; i < base64Images.Count; i++)
             {
                 string camLabel = "Unknown";
-                
+
                 // 画像枚数からカメラを推測 (実験モードは4枚固定)
                 if (base64Images.Count == 4)
                 {
@@ -526,7 +547,7 @@ public class VLMClient : MonoBehaviour
 
             sw.Stop();
             long t_end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
-            
+
             string contentResult = "";
 
             if (request.result != UnityWebRequest.Result.Success)
@@ -538,7 +559,7 @@ public class VLMClient : MonoBehaviour
             {
                 string rawJson = request.downloadHandler.text;
                 contentResult = ExtractContent(rawJson);
-                
+
                 if (!isExperimentMode)
                 {
                     OllamaResponse responseData = JsonUtility.FromJson<OllamaResponse>(rawJson);
@@ -547,7 +568,7 @@ public class VLMClient : MonoBehaviour
                     Debug.Log($"【Token Usage】 Used: {used} / Limit: {limit}");
                 }
                 Debug.Log("AI Response: " + contentResult);
-                
+
                 if (isFreeForm && VLMText) VLMText.text = contentResult;
                 else DisplayDynamicResult(contentResult);
             }
