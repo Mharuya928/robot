@@ -9,6 +9,9 @@ using Debug = UnityEngine.Debug;
 
 public class OllamaModelManager : MonoBehaviour
 {
+    public static OllamaModelManager Instance { get; private set; }
+    public bool IsModelReady { get; private set; } = false;
+
     [Header("Model (pull once)")]
     [Tooltip("このモデルが無ければ自動で pull します（例: qwen3-vl:latest など）")]
     public string modelToEnsure = "";
@@ -17,6 +20,16 @@ public class OllamaModelManager : MonoBehaviour
     public bool autoPullIfMissing = true;
     
     private OllamaServerManager _serverManager;
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
 
     void Start()
     {
@@ -55,6 +68,9 @@ public class OllamaModelManager : MonoBehaviour
             }
         }
         yield return LogAvailableModels();
+
+        IsModelReady = true;
+        Debug.Log("[OllamaModelManager] Model management complete. Ready for requests.");
     }
     
     public IEnumerator HasModel(string modelName, Action<bool> onDone)
@@ -75,12 +91,8 @@ public class OllamaModelManager : MonoBehaviour
 
     public IEnumerator PullModel(string modelName)
     {
-        var exe = _serverManager.PersistentOllamaPath;
-        if (!File.Exists(exe))
-        {
-            Debug.LogError("[OllamaModelManager] embedded ollama not found: " + exe);
-            yield break;
-        }
+        // Use the system-wide 'ollama' command. It's expected to be in the system's PATH.
+        var exe = "ollama";
 
         var psi = new ProcessStartInfo
         {

@@ -24,13 +24,7 @@ public class OllamaServerManager : MonoBehaviour
     [Tooltip("アプリ終了時に、このスクリプトが起動したollamaを停止する")]
     public bool killOnQuit = true;
 
-    [Header("Paths (Linux)")]
-    [Tooltip("StreamingAssets内のollama相対パス")]
-    public string streamingRelativePath = "ollama/ollama";
-
-    [Tooltip("persistentDataPath配下に作る実行ファイル配置フォルダ名")]
-    public string persistentBinDirName = "ollama_bin";
-
+    [Header("Logging")]
     [Tooltip("ログを persistentDataPath に保存する")]
     public bool writeLogs = true;
 
@@ -39,8 +33,6 @@ public class OllamaServerManager : MonoBehaviour
     private bool _isServerReady = false;
 
     public string BaseUrl => $"http://{host}:{port}";
-    public string PersistentBinDir => Path.Combine(Application.persistentDataPath, persistentBinDirName);
-    public string PersistentOllamaPath => Path.Combine(PersistentBinDir, "ollama");
     string LogDir => Path.Combine(Application.persistentDataPath, "ollama_logs");
     string CurrentLogPath => Path.Combine(LogDir, $"ollama_{DateTime.Now:yyyyMMdd_HHmmss}.log");
     
@@ -97,16 +89,12 @@ public class OllamaServerManager : MonoBehaviour
 
         if (!alive)
         {
-            yield return CopyOllamaToPersistent();
-            if (!EnsureExecutable(PersistentOllamaPath))
+            Debug.Log("[OllamaServer] No running server detected. Attempting to start system-installed 'ollama'.");
+            
+            // Use the system-installed 'ollama' command.
+            if (!StartServe("ollama"))
             {
-                Debug.LogError("[OllamaServer] chmod failed. Check file permissions.");
-                yield break;
-            }
-
-            if (!StartServe(PersistentOllamaPath))
-            {
-                Debug.LogError("[OllamaServer] failed to start serve process.");
+                Debug.LogError("[OllamaServer] Failed to start 'ollama serve' process. Is Ollama installed on the system and in the PATH?");
                 yield break;
             }
 
@@ -117,7 +105,7 @@ public class OllamaServerManager : MonoBehaviour
                 yield return CheckAlive(a => ok = a);
                 if (ok)
                 {
-                    Debug.Log("[OllamaServer] serve is up");
+                    Debug.Log("[OllamaServer] 'ollama serve' is up.");
                     alive = true;
                     break;
                 }
@@ -127,14 +115,14 @@ public class OllamaServerManager : MonoBehaviour
 
             if (!alive)
             {
-                Debug.LogError("[OllamaServer] start timeout");
+                Debug.LogError($"[OllamaServer] 'ollama serve' start timeout after {startupTimeoutSec} seconds. Check system logs for details.");
                 yield break;
             }
         }
         else
         {
-            Debug.Log("[OllamaServer] already running (external or previous instance)");
-            _startedByThisScript = IsPersistentOllamaServing();
+            Debug.Log("[OllamaServer] Detected an already running Ollama server. Using external instance.");
+            _startedByThisScript = false; // We didn't start this one.
         }
         
         _isServerReady = true;
@@ -149,75 +137,11 @@ public class OllamaServerManager : MonoBehaviour
         bool ok = req.result == UnityEngine.Networking.UnityWebRequest.Result.Success && req.responseCode >= 200 && req.responseCode < 300;
         onDone?.Invoke(ok);
     }
-
-    bool IsPersistentOllamaServing()
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "bash",
-                Arguments = "-lc \"ps aux | grep '[o]llama serve'\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-            using var p = Process.Start(psi);
-            var text = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            return text.Contains(PersistentOllamaPath + " serve");
-        }
-        catch { return false; }
-    }
-
-    IEnumerator CopyOllamaToPersistent()
-    {
-        Directory.CreateDirectory(PersistentBinDir);
-        if (writeLogs) Directory.CreateDirectory(LogDir);
-
-        string src = Path.Combine(Application.streamingAssetsPath, streamingRelativePath);
-        if (!File.Exists(src))
-        {
-            Debug.LogError($"[OllamaServer] not found in StreamingAssets: {src}");
-            yield break;
-        }
-
-        try
-        {
-            bool needCopy = !File.Exists(PersistentOllamaPath) ||
-                            new FileInfo(PersistentOllamaPath).Length != new FileInfo(src).Length;
-
-            if (needCopy)
-            {
-                File.Copy(src, PersistentOllamaPath, overwrite: true);
-                Debug.Log($"[OllamaServer] copied to: {PersistentOllamaPath}");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[OllamaServer] copy failed: {e.Message}");
-        }
-        yield return null;
-    }
-
-    bool EnsureExecutable(string path)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo { FileName = "chmod", Arguments = $" +x \"{path}\"", UseShellExecute = false, CreateNoWindow = true };
-            using var p = Process.Start(psi);
-            p.WaitForExit();
-            return p.ExitCode == 0;
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[OllamaServer] chmod exception: {e.Message}");
-            return false;
-        }
-    }
     
     bool StartServe(string exePath)
     {
+        if (writeLogs && !Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+
         try
         {
             var psi = new ProcessStartInfo
@@ -229,6 +153,7 @@ public class OllamaServerManager : MonoBehaviour
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            // The OLLAMA_HOST environment variable will be respected by the 'ollama serve' command.
             psi.Environment["OLLAMA_HOST"] = $"{host}:{port}";
 
             _serveProc = new Process { StartInfo = psi, EnableRaisingEvents = true };
@@ -252,13 +177,14 @@ public class OllamaServerManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[OllamaServer] serve start exception: {e.Message}");
+            Debug.LogError($"[OllamaServer] 'ollama serve' start exception: {e.Message}. Ensure 'ollama' is in your system's PATH.");
             return false;
         }
     }
 
     void StopOllamaIfNeeded()
     {
+        // Only stop the server if this script started it.
         if (!killOnQuit || !_startedByThisScript) return;
         
         try
@@ -266,18 +192,12 @@ public class OllamaServerManager : MonoBehaviour
             if (_serveProc != null && !_serveProc.HasExited)
             {
                 KillProcessTreeLinux(_serveProc);
-                Debug.Log("[OllamaServer] Stopped own process tree.");
-            }
-            else
-            {
-                string commandFilter = $"{PersistentOllamaPath} serve";
-                Debug.Log($"[OllamaServer] Stopping orphaned process by command match: {commandFilter}");
-                RunBash($"pkill -f \"{commandFilter}\" ");
+                Debug.Log("[OllamaServer] Stopped 'ollama serve' process tree started by this script.");
             }
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[OllamaServer] Exception while stopping: {e.Message}");
+            Debug.LogWarning($"[OllamaServer] Exception while stopping 'ollama serve' process: {e.Message}");
         }
         finally
         {
@@ -292,8 +212,10 @@ public class OllamaServerManager : MonoBehaviour
         if (proc == null || proc.HasExited) return;
         try
         {
-            RunBash($"pkill -TERM -P {proc.Id} || true");
-            proc.Kill();
+            // Use pkill to send TERM signal to the process group of the parent process.
+            // This is a more robust way to clean up child processes.
+            RunBash($"pkill -TERM -P {proc.Id}");
+            proc.Kill(); // Force kill if it didn't terminate.
             proc.Dispose();
         }
         catch { }
@@ -303,10 +225,16 @@ public class OllamaServerManager : MonoBehaviour
     {
         try
         {
-            var psi = new ProcessStartInfo { FileName = "bash", Arguments = $"-lc \"{cmd}\"", UseShellExecute = false, CreateNoWindow = true };
-            Process.Start(psi)?.WaitForExit();
+            var psi = new ProcessStartInfo { FileName = "bash", Arguments = $"-c \"{cmd}\"", UseShellExecute = false, CreateNoWindow = true };
+            using(var p = Process.Start(psi))
+            {
+                p?.WaitForExit(1000); // Wait for 1 second
+            }
         }
-        catch { }
+        catch(Exception e) 
+        {
+            Debug.LogWarning($"[OllamaServer] RunBash failed for cmd '{cmd}': {e.Message}");
+        }
     }
     
     static void AppendLog(string path, string line)

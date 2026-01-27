@@ -41,35 +41,31 @@ public class VLMClient : MonoBehaviour
         ConfigB
     }
 
-    private IEnumerator WaitForOllamaReady(float timeoutSec = 10f)
-    {
-        float t = 0f;
-        while (t < timeoutSec)
-        {
-            using (var req = UnityWebRequest.Get("http://127.0.0.1:11434/api/tags"))
-            {
-                req.timeout = 1;
-                yield return req.SendWebRequest();
-                if (req.result == UnityWebRequest.Result.Success && req.responseCode >= 200 && req.responseCode < 300)
-                    yield break; // 準備OK
-            }
-            t += 0.25f;
-            yield return new WaitForSeconds(0.25f);
-        }
-        Debug.LogError("[VLMClient] Ollama not ready (timeout).");
-    }
-
     // エディタ上で値を変更した瞬間に反映させる
     void OnValidate()
     {
         ApplyConfigSelection();
     }
 
-    // ゲーム開始時にも確実に適用する
+    // ▼▼▼ 変更: OllamaServerManagerへの依存関係を追加 ▼▼▼
+    private OllamaServerManager serverManager;
+    private OllamaModelManager modelManager;
+
     void Awake()
     {
         ApplyConfigSelection();
+        serverManager = OllamaServerManager.Instance;
+        if (serverManager == null)
+        {
+            Debug.LogError("[VLMClient] OllamaServerManager instance not found! Please add OllamaServerManager to the scene.");
+        }
+        modelManager = OllamaModelManager.Instance;
+        if (modelManager == null)
+        {
+            Debug.LogError("[VLMClient] OllamaModelManager instance not found! Please add OllamaModelManager to the scene.");
+        }
     }
+    // ▲▲▲ 変更ここまで ▲▲▲
 
     private void ApplyConfigSelection()
     {
@@ -132,8 +128,10 @@ public class VLMClient : MonoBehaviour
     // =================================================================
     // 3. 通信・撮影設定
     // =================================================================
-    [Header("Ollama Connection")]
-    public string ollamaUrl = "http://127.0.0.1:11434/api/chat";
+    // ▼▼▼ 削除: ハードコードされたURLは不要 ▼▼▼
+    // [Header("Ollama Connection")]
+    // public string ollamaUrl = "http://127.0.0.1:11434/api/chat";
+    // ▲▲▲ 削除ここまで ▲▲▲
 
     [Header("Capture Settings")]
     [Tooltip("VLMに送る画像の幅 (推奨: 512)")]
@@ -320,13 +318,60 @@ public class VLMClient : MonoBehaviour
     // =================================================================
     // AI通信のメイン処理 (キャッシュ対応版)
     // =================================================================
-    // ▼▼▼ 変更: 第2引数に cachedImages を追加 ▼▼▼
+    // ▼▼▼ 変更: サーバー準備待機処理を修正 ▼▼▼
     private IEnumerator SendRequestToOllama(System.Action<InferenceMetrics> onComplete = null, List<string> cachedImages = null)
     {
         if (isProcessing) yield break;
-        isProcessing = true;
 
-        yield return WaitForOllamaReady();
+        isProcessing = true; // 他のリクエストが重複しないように、早期にフラグを立てる
+
+        // ▼▼▼ 変更: サーバーマネージャーのインスタンスを再取得 ▼▼▼
+        if (serverManager == null)
+        {
+            serverManager = OllamaServerManager.Instance;
+            if (serverManager == null)
+            {
+                Debug.LogError("[VLMClient] OllamaServerManager instance is null. Please ensure it is in the scene and active.");
+                isProcessing = false;
+                yield break;
+            }
+        }
+        // ▲▲▲ 変更ここまで ▲▲▲
+
+        // サーバーが準備完了になるまで待つ（タイムアウト付き）
+        float waitStartTime = Time.time;
+        // サーバー自体の起動タイムアウト(12s)に少し余裕を持たせる
+        float totalTimeout = serverManager.startupTimeoutSec + 5f;
+
+        while (!serverManager.IsServerReady)
+        {
+            if (Time.time - waitStartTime > totalTimeout)
+            {
+                Debug.LogError("[VLMClient] Waited for Ollama server to be ready, but it timed out. Request aborted.");
+                isProcessing = false;
+                yield break;
+            }
+
+            // 1フレーム待機
+            yield return null;
+        }
+
+        // ▼▼▼ 追加: モデルが準備完了になるまで待つ ▼▼▼
+        waitStartTime = Time.time;
+        // モデルpullには時間がかかるため、長めのタイムアウト（5分）
+        totalTimeout = 300f;
+
+        // while (!modelManager.IsModelReady)
+        // {
+        //     if (Time.time - waitStartTime > totalTimeout)
+        //     {
+        //         Debug.LogError("[VLMClient] Waited for Ollama model to be ready, but it timed out. Request aborted.");
+        //         isProcessing = false;
+        //         yield break;
+        //     }
+        //     yield return null;
+        // }
+        // ▲▲▲ 追加ここまで ▲▲▲
 
         if (VLMText != null) VLMText.text = "VLM: Processing...";
 
@@ -340,9 +385,7 @@ public class VLMClient : MonoBehaviour
         // モジュールログ (通常時のみ)
         if (!isExperimentMode)
         {
-            StringBuilder moduleLog = new StringBuilder();
-            if (config.activeModules != null) foreach (var m in config.activeModules) if (m) moduleLog.AppendLine(m.moduleName);
-            Debug.Log($"Active Modules:\n{moduleLog}");
+            Debug.Log("[VLMClient] Reached module logging section.");
         }
 
         if (carController != null) carController.SetRaycastLineVisibility(false);
@@ -536,25 +579,38 @@ public class VLMClient : MonoBehaviour
         }
 
         // 5. 送信
-        using (UnityWebRequest request = new UnityWebRequest(ollamaUrl, "POST"))
+        // ▼▼▼ 変更: URLをサーバーマネージャーから取得 ▼▼▼
+        string url = $"{serverManager.BaseUrl}/api/chat";
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+        // ▲▲▲ 変更ここまで ▲▲▲
         {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
 
+            // ▼▼▼ 変更: タイムアウト設定と詳細ログを追加 ▼▼▼
+            request.timeout = 120; // 120秒のタイムアウトを設定
+
+            Debug.Log("Sending request to Ollama... Waiting for response.");
             yield return request.SendWebRequest();
+            Debug.Log("Response received or request finished. Analyzing result...");
+            // ▲▲▲ 変更ここまで ▲▲▲
 
             sw.Stop();
             long t_end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
 
             string contentResult = "";
 
+            // ▼▼▼ 変更: より詳細なエラーログを追加 ▼▼▼
             if (request.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("Error: " + request.error);
+                Debug.LogError($"[VLMClient] Request Error: {request.error}");
+                Debug.LogError($"[VLMClient] Response Code: {request.responseCode}");
+                Debug.LogError($"[VLMClient] Response Error Body: {request.downloadHandler.text}");
                 if (VLMText) VLMText.text = "Error: " + request.error;
             }
+            // ▲▲▲ 変更ここまで ▲▲▲
             else
             {
                 string rawJson = request.downloadHandler.text;
