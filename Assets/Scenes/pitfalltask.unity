@@ -4250,7 +4250,7 @@ MonoBehaviour:
   rightCamera: {fileID: 518046406}
   VLMText: {fileID: 1661602235}
   configText: {fileID: 1247373917}
-  ollamaUrl: http://localhost:11434/api/chat
+  ollamaUrl: http://127.0.0.1:11434/api/chat
   captureWidth: 512
   captureHeight: 512
   vlmActivationKey: 9

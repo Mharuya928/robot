@@ -133,7 +133,7 @@ public class VLMClient : MonoBehaviour
     // 3. 通信・撮影設定
     // =================================================================
     [Header("Ollama Connection")]
-    public string ollamaUrl = "http://localhost:11434/api/chat";
+    public string ollamaUrl = "http://127.0.0.1:11434/api/chat";
 
     [Header("Capture Settings")]
     [Tooltip("VLMに送る画像の幅 (推奨: 512)")]
